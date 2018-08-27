@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Class: 8, USB_CLASS_MASS_STORAGE
+        Protocol: 80, Communication happens only via bulk transfers
+        Subclass: 6, SCSI transparent command set
+    -->
+    <usb-device
+        class="8"
+        protocol="80"
+        subclass="6" />
+
+</resources>

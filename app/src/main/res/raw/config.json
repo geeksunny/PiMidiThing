@@ -1,0 +1,131 @@
+{
+  "devices": {
+    "Tbox1": {
+      "name": "Tbox 2X2",
+      "port": 0
+    },
+    "Tbox2": {
+      "name": "Tbox 2X2",
+      "port": 1
+    },
+    "Circuit": {
+      "name": "Circuit",
+      "port": 0
+    },
+    "Beatstep": {
+      "name": "Arturia BeatStep Pro",
+      "port": 0
+    },
+    "Launchkey": {
+      "name": "Launchkey MK2 49",
+      "port": 0
+    },
+    "Monostation": {
+      "name": "Circuit Mono Station",
+      "port": 0
+    }
+  },
+  "ignore": [
+    "Midi Through"
+  ],
+  "mappings": {
+    "Master": {
+      "inputs": [
+        "Beatstep", "Launckey"
+      ],
+      "outputs": [
+        "Tbox2", "Tbox1", "Circuit", "Monostation"
+      ],
+      "filters": {
+        "channels": {
+          "blacklist": [ 3, 4, 5, 6 ]
+        },
+        "velocity": {
+          "min": 64,
+          "type": "scaled"
+        }
+      },
+      "listen": {
+        "clock": true,
+        "sysex": false,
+        "activeSense": false
+      }
+    },
+    "Only.Circuit": {
+      "inputs": [
+        "Beatstep", "Launchkey"
+      ],
+      "outputs": [
+        "Tbox1", "Circuit"
+      ],
+      "filters": {
+        "channels": {
+          "whitelist": [
+            3,
+            4
+          ],
+          "map": {
+            "3": 1,
+            "4": 2
+          }
+        },
+        "velocity": {
+          "min": 127
+        },
+        "chord": {
+          "chord": "MAJOR3"
+        }
+      }
+    },
+    "Only.Monostation": {
+      "inputs": [
+        "Beatstep", "Launchkey"
+      ],
+      "outputs": [
+        "Monostation"
+      ],
+      "filters": {
+        "channels": {
+          "whitelist": [
+            5,
+            6
+          ],
+          "map": {
+            "5": 1,
+            "6": 2
+          }
+        },
+        "velocity": {
+          "min": 127
+        }
+      }
+    }
+  },
+  "clock": {
+    "inputs": [
+      "Beatstep", "Launchkey"
+    ],
+    "outputs": [
+      "Tbox2", "Tbox1", "Circuit", "Monostation"
+    ],
+    "bpm": 120,
+    "ppqn": 24,
+    "patternLength": 16,
+    "tapEnabled": true,
+    "analog": {
+      "volume": 65
+    }
+  },
+  "sysex": [{
+    "path": "./MelloGlass.sysex",
+    "output": "Tbox1"
+  }],
+  "options": {
+    "led": {
+      "type": "RasPiStatusLED"
+    },
+    "hotplug": true,
+    "syncConfigToUsb": true,
+    "verbose": true
+  }
+}
