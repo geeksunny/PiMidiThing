@@ -1,0 +1,3 @@
+[submodule "SenseHatDriverForAndroidThings"]
+	path = SenseHatDriverForAndroidThings
+	url = git@github.com:geeksunny/SenseHatDriverForAndroidThings.git
