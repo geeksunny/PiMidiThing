@@ -1,4 +1,4 @@
-package com.radicalninja.pimidithing.midi;
+package com.radicalninja.pimidithing.midi.router;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -8,8 +8,8 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import com.radicalninja.pimidithing.App;
-import com.radicalninja.pimidithing.FileUtils;
-import com.radicalninja.pimidithing.JsonUtils;
+import com.radicalninja.pimidithing.util.FileUtils;
+import com.radicalninja.pimidithing.util.JsonUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Configuration {
+public class RouterConfig {
 
     private static final String JSON_KEY_DEVICES = "devices";
     private static final String JSON_KEY_NAME = "name";
@@ -59,9 +59,9 @@ public class Configuration {
     private final List<Sysex> sysex = new ArrayList<>();
     private final Options options = new Options();
 
-    public static Configuration fromPath(final String path) throws IOException {
+    public static RouterConfig fromPath(final String path) throws IOException {
         final String json = FileUtils.readAsString(path);
-        return App.getInstance().getGson().fromJson(json, Configuration.class);
+        return App.getInstance().getGson().fromJson(json, RouterConfig.class);
     }
 
     public Device getDevice(final String nickname) {
@@ -71,7 +71,7 @@ public class Configuration {
     public boolean save(final String path) {
         final File output = new File(path);
         try {
-            final String json = App.getInstance().getGson().toJson(this, Configuration.class);
+            final String json = App.getInstance().getGson().toJson(this, RouterConfig.class);
             FileUtils.saveToFile(output, json);
         } catch (IOException e) {
             e.printStackTrace();
@@ -201,7 +201,7 @@ public class Configuration {
     }
 
     public static class Adapter
-            implements JsonSerializer<Configuration>, JsonDeserializer<Configuration> {
+            implements JsonSerializer<RouterConfig>, JsonDeserializer<RouterConfig> {
 
         public List<Device> fetchDevices(
                 final JsonElement json, final Map<String, Device> devicePool,
@@ -220,11 +220,11 @@ public class Configuration {
         }
 
         @Override
-        public Configuration deserialize(
+        public RouterConfig deserialize(
                 JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
 
             // TODO: try/catch!!!
-            final Configuration config = new Configuration();
+            final RouterConfig config = new RouterConfig();
             final JsonObject _json = json.getAsJsonObject();
             // Parse devices
             if (_json.has(JSON_KEY_DEVICES)) {
@@ -268,7 +268,7 @@ public class Configuration {
 
         @Override
         public JsonElement serialize(
-                Configuration src, Type typeOfSrc, JsonSerializationContext context) {
+                RouterConfig src, Type typeOfSrc, JsonSerializationContext context) {
 
             final JsonObject json = new JsonObject();
             // TODO

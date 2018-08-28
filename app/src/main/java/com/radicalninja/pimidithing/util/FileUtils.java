@@ -1,4 +1,4 @@
-package com.radicalninja.pimidithing;
+package com.radicalninja.pimidithing.util;
 
 import java.io.BufferedReader;
 import java.io.File;

@@ -1,4 +1,4 @@
-package com.radicalninja.pimidithing;
+package com.radicalninja.pimidithing.usb;
 
 import android.content.Context;
 import android.hardware.usb.UsbConstants;

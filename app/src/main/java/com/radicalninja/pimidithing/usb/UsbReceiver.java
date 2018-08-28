@@ -1,4 +1,4 @@
-package com.radicalninja.pimidithing;
+package com.radicalninja.pimidithing.usb;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.util.Log;
+
+import com.radicalninja.pimidithing.App;
 
 public class UsbReceiver extends BroadcastReceiver {
 

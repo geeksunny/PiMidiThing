@@ -1,4 +1,4 @@
 package com.radicalninja.pimidithing.midi;
 
-public class Router {
+public class MidiRouter {
 }

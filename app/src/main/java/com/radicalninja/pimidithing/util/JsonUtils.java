@@ -1,4 +1,4 @@
-package com.radicalninja.pimidithing;
+package com.radicalninja.pimidithing.util;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;

@@ -3,7 +3,7 @@ package com.radicalninja.pimidithing.midi;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Message {
+public class MidiMessage {
 
     public enum MessageType {
 
@@ -65,7 +65,7 @@ public class Message {
     private final byte[] bytes;
     private final Map<String, Integer> properties = new HashMap<>();
 
-    public Message(final byte[] bytes) {
+    public MidiMessage(final byte[] bytes) {
         this.bytes = bytes;
         // todo: set up properties
     }

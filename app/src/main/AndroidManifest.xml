@@ -39,7 +39,7 @@
         </activity>
 
         <receiver
-            android:name=".UsbReceiver"
+            android:name=".usb.UsbReceiver"
             android:enabled="true"
             android:exported="true">
 

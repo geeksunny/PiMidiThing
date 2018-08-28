@@ -11,12 +11,13 @@ import android.os.Bundle;
 import android.util.Log;
 
 import com.github.mjdev.libaums.UsbMassStorageDevice;
-import com.radicalninja.pimidithing.MassStorageController;
+import com.radicalninja.pimidithing.usb.MassStorageController;
+import com.radicalninja.pimidithing.midi.router.RouterConfig;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class Core implements MassStorageController.UsbMassStorageListener {
+public class MidiCore implements MassStorageController.UsbMassStorageListener {
 
     public static class DeviceIndex {
         private final Map<String, PortRecord> records = new HashMap<>();
@@ -100,9 +101,9 @@ public class Core implements MassStorageController.UsbMassStorageListener {
     private final MidiManager manager;
 
     private boolean started = false;
-    private Configuration config;
+    private RouterConfig config;
 
-    public Core(final Context context) {
+    public MidiCore(final Context context) {
         if (!context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_MIDI)) {
             throw new IllegalStateException("MIDI feature is missing from this device!");
         }
@@ -114,10 +115,10 @@ public class Core implements MassStorageController.UsbMassStorageListener {
             // TODO: log warning / throw error?
             return;
         }
-        config = new Configuration();
+        config = new RouterConfig();
         // TODO: Check if config file exists in internal storage
         // TODO: IF NOT - Open from raw / assets, save to internal storage.
-        // TODO: IF YES - Configuration.fromFile()
+        // TODO: IF YES - RouterConfig.fromFile()
     }
 
     public MidiDeviceInfo[] getDevices() {

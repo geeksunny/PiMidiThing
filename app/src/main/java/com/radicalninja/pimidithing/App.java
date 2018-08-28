@@ -11,8 +11,9 @@ import com.eon.androidthings.sensehatdriverlibrary.SenseHat;
 import com.eon.androidthings.sensehatdriverlibrary.devices.LedMatrix;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.radicalninja.pimidithing.midi.Configuration;
-import com.radicalninja.pimidithing.midi.Core;
+import com.radicalninja.pimidithing.usb.MassStorageController;
+import com.radicalninja.pimidithing.midi.router.RouterConfig;
+import com.radicalninja.pimidithing.midi.MidiCore;
 
 import java.io.IOException;
 
@@ -26,7 +27,7 @@ public class App extends Application {
         return instance;
     }
 
-    private Core core;
+    private MidiCore midiCore;
     private Gson gson;
     private MassStorageController massStorageController;
 
@@ -51,7 +52,7 @@ public class App extends Application {
 
     private void initGson() {
         final GsonBuilder builder = new GsonBuilder();
-        builder.registerTypeAdapter(Configuration.class, new Configuration.Adapter());
+        builder.registerTypeAdapter(RouterConfig.class, new RouterConfig.Adapter());
         gson = builder.create();
     }
 
@@ -60,8 +61,8 @@ public class App extends Application {
     }
 
     private void initMidiCore() {
-        core = new Core(this);
-        final MidiDeviceInfo[] devices = core.getDevices();
+        midiCore = new MidiCore(this);
+        final MidiDeviceInfo[] devices = midiCore.getDevices();
     }
 
     private void initSenseHat() {
@@ -75,8 +76,8 @@ public class App extends Application {
         }
     }
 
-    public Core getCore() {
-        return core;
+    public MidiCore getMidiCore() {
+        return midiCore;
     }
 
     public Gson getGson() {
