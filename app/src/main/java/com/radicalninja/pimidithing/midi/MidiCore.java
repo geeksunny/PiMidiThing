@@ -2,27 +2,34 @@ package com.radicalninja.pimidithing.midi;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.media.midi.MidiDevice;
 import android.media.midi.MidiDeviceInfo;
 import android.media.midi.MidiDeviceStatus;
 import android.media.midi.MidiManager;
 import android.media.midi.MidiReceiver;
-import android.media.midi.MidiSender;
 import android.os.Bundle;
-import android.util.Log;
 
 import com.github.mjdev.libaums.UsbMassStorageDevice;
-import com.radicalninja.pimidithing.usb.MassStorageController;
+import com.radicalninja.pimidithing.App;
+import com.radicalninja.pimidithing.R;
 import com.radicalninja.pimidithing.midi.router.RouterConfig;
+import com.radicalninja.pimidithing.usb.MassStorageController;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class MidiCore implements MassStorageController.UsbMassStorageListener {
 
     public static class DeviceIndex {
         private final Map<String, PortRecord> records = new HashMap<>();
-        private final Map<PortRecord, MidiReceiver> inputs = new HashMap<>();
-        private final Map<PortRecord, MidiSender> outputs = new HashMap<>();
+        // Reversing the names of output and input ports to align with RtMIDI's implementation.
+        private final Map<PortRecord, MidiInputController> inputs = new HashMap<>();
+        private final Map<PortRecord, MidiOutputController> outputs = new HashMap<>();
 
         public DeviceIndex() {
             // todo
@@ -58,20 +65,61 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     }
 
     public static class PortRecord {
-        public String name;
-        public int port;
-        public String nickname;
+        static final String NICKNAME_TEMPLATE = "%s___%d";
+
+        String name;
+        int port;
+        String nickname;
 
         public PortRecord(String name, int port) {
             this.name = name;
             this.port = port;
-            // TODO: Generate nickname here
+            this.nickname = String.format(NICKNAME_TEMPLATE, name, port);
         }
 
         public PortRecord(String name, int port, String nickname) {
             this.name = name;
             this.port = port;
             this.nickname = nickname;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(final String name) {
+            this.name = name;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        public void setPort(final int port) {
+            this.port = port;
+        }
+
+        public String getNickname() {
+            return nickname;
+        }
+
+        public void setNickname(final String nickname) {
+            this.nickname = nickname;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            PortRecord that = (PortRecord) o;
+            return port == that.port &&
+                    Objects.equals(name, that.name) &&
+                    Objects.equals(nickname, that.nickname);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, port, nickname);
         }
     }
 
@@ -101,48 +149,88 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     private final MidiManager manager;
 
     private boolean started = false;
-    private RouterConfig config;
+    private MidiRouter router;
 
     public MidiCore(final Context context) {
         if (!context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_MIDI)) {
             throw new IllegalStateException("MIDI feature is missing from this device!");
         }
         manager = (MidiManager) context.getSystemService(Context.MIDI_SERVICE);
+        init();
     }
 
-    public void init() {
+    protected void init() {
         if (!started) {
             // TODO: log warning / throw error?
             return;
         }
-        config = new RouterConfig();
+        final App app = App.getInstance();
+        final InputStream defaultConfig = app.getResources().openRawResource(R.raw.config);
+        final RouterConfig config =
+                app.getGson().fromJson(new InputStreamReader(defaultConfig), RouterConfig.class);
+        router = new MidiRouter(config);
         // TODO: Check if config file exists in internal storage
         // TODO: IF NOT - Open from raw / assets, save to internal storage.
         // TODO: IF YES - RouterConfig.fromFile()
     }
 
-    public MidiDeviceInfo[] getDevices() {
+    protected Map<MidiDeviceInfo, Integer> openDevices(
+            final int portType, final List<RouterConfig.Device> deviceRecords) {
+
+        final Map<MidiDeviceInfo, Integer> result = new HashMap<>();
+        return result;
+    }
+
+    public void openInput(
+            final RouterConfig.Device deviceRecord, MidiManager.OnDeviceOpenedListener listener) {
+
         final MidiDeviceInfo[] infos = manager.getDevices();
         for (final MidiDeviceInfo info : infos) {
             final Bundle props = info.getProperties();
-            Log.d("MIDI", String.format("Manufacturer: %s", props.getString(MidiDeviceInfo.PROPERTY_MANUFACTURER)));
-            Log.d("MIDI", String.format("Name: %s", props.getString(MidiDeviceInfo.PROPERTY_NAME)));
-            Log.d("MIDI", String.format("Product: %s", props.getString(MidiDeviceInfo.PROPERTY_PRODUCT)));
-            Log.d("MIDI", String.format("Serial Number: %s", props.getString(MidiDeviceInfo.PROPERTY_SERIAL_NUMBER)));
-//            Log.d("MIDI", String.format("USB Device: %s", props.getString(MidiDeviceInfo.PROPERTY_USB_DEVICE)));
-            final MidiDeviceInfo.PortInfo[] portInfos = info.getPorts();
-            for (final MidiDeviceInfo.PortInfo portInfo : portInfos) {
-                Log.d("MIDI", "Starting a PortInfo");
-                Log.d("MIDI", String.format("Port Number: %d", portInfo.getPortNumber()));
-                Log.d("MIDI", String.format("Port Type: %d", portInfo.getType()));
+            final String name = props.getString(MidiDeviceInfo.PROPERTY_PRODUCT);
+            if (!deviceRecord.getName().equals(name)) {
+                continue;
+            }
+            final MidiDeviceInfo.PortInfo[] ports = info.getPorts();
+            for (final MidiDeviceInfo.PortInfo portInfo : ports) {
+                if (portInfo.getType() == MidiDeviceInfo.PortInfo.TYPE_INPUT
+                        && portInfo.getPortNumber() == deviceRecord.getPort()) {
+
+                    manager.openDevice(info, listener, null);
+                    return;
+                }
             }
         }
-        return infos;
+    }
+
+    public List<MidiDevice> openInputs(final List<RouterConfig.Device> deviceRecords) {
+        // TODO: Refactor in the future for input wrapper class
+        final List<MidiDevice> devices = new ArrayList<>(deviceRecords.size());
+        for (final RouterConfig.Device deviceRecord : deviceRecords) {
+            // TODO!!!!!
+        }
+        return devices;
+    }
+
+    public MidiDevice openOutput(final RouterConfig.Device deviceRecord) {
+        // TODO: Refactor in the future for output wrapper class
+        MidiDevice device;
+        // TODO!!!!!
+        return null;
+    }
+
+    public List<MidiDevice> openOutputs(final List<RouterConfig.Device> deviceRecords) {
+        // TODO: Refactor in the future for output wrapper class
+        final List<MidiDevice> devices = new ArrayList<>(deviceRecords.size());
+        for (final RouterConfig.Device deviceRecord : deviceRecords) {
+            // TODO!!!!!
+        }
+        return devices;
     }
 
     @Override
-    public void onStorageAttached(UsbMassStorageDevice device) {
-        // todo
+    public void onStorageAttached(final UsbMassStorageDevice device) {
+        // todo: init config sync
     }
 
     @Override

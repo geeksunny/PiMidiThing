@@ -1,5 +1,6 @@
 package com.radicalninja.pimidithing.midi;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,7 +28,7 @@ public class MidiMessage {
         STOP(Set.EXTENDED, 0xFC),
         RESET(Set.EXTENDED, 0xFF);
 
-        public static final MessageType fromValue(final int value) {
+        public static MessageType fromValue(final int value) {
             // TODO: VERIFY THIS WORKS
             final MessageType[] types = (value < 0xF0)
                     ? MessageType.basicTypes : MessageType.extendedTypes;
@@ -61,12 +62,70 @@ public class MidiMessage {
 
     }
 
-    // TODO: Should actually this be final?
+    // TODO: Use with noteString property. ex: "NOTE_STRINGS[this.note / 12] this.octave";
+    private static final String[] NOTE_STRINGS =
+            { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+
     private final byte[] bytes;
+    private final int offset;
+    private final int count;
+    private final long timestamp;
+
     private final Map<String, Integer> properties = new HashMap<>();
 
-    public MidiMessage(final byte[] bytes) {
-        this.bytes = bytes;
-        // todo: set up properties
+    private MessageType type;
+
+    public MidiMessage(final int type, final Map<String, Integer> properties) {
+        this(MessageType.fromValue(type), properties);
     }
+
+    public MidiMessage(final MessageType type, final Map<String, Integer> properties) {
+        if (null == type) {
+            throw new NullPointerException("Invalid MessageType provided.");
+        }
+        this.offset = 0;
+        this.count = 0;
+        this.timestamp = 0;
+        // TODO: Build contents of bytes based on type and property!
+        bytes = new byte[3];
+    }
+
+    public MidiMessage(final byte[] bytes, final int offset, final int count, final long timestamp) {
+        this.bytes = Arrays.copyOf(bytes, bytes.length);
+        this.offset = offset;
+        this.count = count;
+        this.timestamp = timestamp;
+        parseBytes();
+    }
+
+    protected void parseBytes() {
+        // TODO: Set type, populate properties
+    }
+
+    public byte[] getBytes() {
+        return bytes;
+    }
+
+    public int getChannel() {
+        // TODO: Parse from byte[0]
+        return 0;
+    }
+
+    public MessageType getType() {
+        // TODO!
+        return null;
+    }
+
+    public int getOffset() {
+        return offset;
+    }
+
+    public int getCount() {
+        return count;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
 }

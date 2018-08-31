@@ -11,9 +11,9 @@ import com.eon.androidthings.sensehatdriverlibrary.SenseHat;
 import com.eon.androidthings.sensehatdriverlibrary.devices.LedMatrix;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.radicalninja.pimidithing.usb.MassStorageController;
-import com.radicalninja.pimidithing.midi.router.RouterConfig;
 import com.radicalninja.pimidithing.midi.MidiCore;
+import com.radicalninja.pimidithing.midi.router.RouterConfig;
+import com.radicalninja.pimidithing.usb.MassStorageController;
 
 import java.io.IOException;
 
@@ -62,11 +62,13 @@ public class App extends Application {
 
     private void initMidiCore() {
         midiCore = new MidiCore(this);
-        final MidiDeviceInfo[] devices = midiCore.getDevices();
     }
 
     private void initSenseHat() {
         try {
+            // TODO: Joystick monitoring
+            // TODO: alert messages
+            // TODO: Handle this feature as optional. Exception will be thrown when sensehat is not found.
             sensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);
             senseHat = SenseHat.init(sensorManager);
             ledMatrix = senseHat.getLedMatrix();
