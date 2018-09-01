@@ -1,8 +1,12 @@
 package com.radicalninja.pimidithing.midi;
 
+import android.support.annotation.IntRange;
+import android.support.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class MidiMessage {
 
@@ -28,9 +32,10 @@ public class MidiMessage {
         STOP(Set.EXTENDED, 0xFC),
         RESET(Set.EXTENDED, 0xFF);
 
-        public static MessageType fromValue(final int value) {
+        @Nullable
+        public static MessageType fromValue(final byte value) {
             // TODO: VERIFY THIS WORKS
-            final MessageType[] types = (value < 0xF0)
+            final MessageType[] types = (value < (byte) 0xF0)
                     ? MessageType.basicTypes : MessageType.extendedTypes;
             for (final MessageType type : types) {
                 if (type.value == value) {
@@ -62,20 +67,46 @@ public class MidiMessage {
 
     }
 
+    public interface PropertyHandler {
+        /**
+         * Get the value of this property.
+         * @return An integer represting the current value of this property.
+         */
+        int get();
+
+        /**
+         * Set the value of this property.
+         * @param value - The new value to set in this property.
+         */
+        void set(final int value);
+    }
+
     // TODO: Use with noteString property. ex: "NOTE_STRINGS[this.note / 12] this.octave";
     private static final String[] NOTE_STRINGS =
             { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+
+    public static final String PROPERTY_NAME_NOTE = "note";
+    public static final String PROPERTY_NAME_VELOCITY = "velocity";
+    public static final String PROPERTY_NAME_OCTAVE = "octave";
+    public static final String PROPERTY_NAME_NOTE_STRING = "note_string";
+    public static final String PROPERTY_NAME_PRESSURE = "pressure";
+    public static final String PROPERTY_NAME_CONTROLLER = "controller";
+    public static final String PROPERTY_NAME_VALUE = "value";
+    public static final String PROPERTY_NAME_NUMBER = "number";
+    public static final String PROPERTY_NAME_MTC_TYPE = "mtc_type";
+    public static final String PROPERTY_NAME_SONG = "song";
 
     private final byte[] bytes;
     private final int offset;
     private final int count;
     private final long timestamp;
 
-    private final Map<String, Integer> properties = new HashMap<>();
+    private final Map<String, PropertyHandler> properties = new HashMap<>();
 
+    private int channel;
     private MessageType type;
 
-    public MidiMessage(final int type, final Map<String, Integer> properties) {
+    public MidiMessage(final byte type, final Map<String, Integer> properties) {
         this(MessageType.fromValue(type), properties);
     }
 
@@ -83,14 +114,22 @@ public class MidiMessage {
         if (null == type) {
             throw new NullPointerException("Invalid MessageType provided.");
         }
+        this.type = type;
         this.offset = 0;
         this.count = 0;
         this.timestamp = 0;
-        // TODO: Build contents of bytes based on type and property!
+
         bytes = new byte[3];
+        setupPropertyHandlers();
+        // TODO: Build contents of bytes based on type and property!
+        // TODO: populate value of channel... should this be in properties or a separate param?
     }
 
     public MidiMessage(final byte[] bytes, final int offset, final int count, final long timestamp) {
+        this.type = MessageType.fromValue(bytes[0]);
+        if (null == this.type) {
+            throw new NullPointerException("Invalid MessageType encountered.");
+        }
         this.bytes = Arrays.copyOf(bytes, bytes.length);
         this.offset = offset;
         this.count = count;
@@ -98,22 +137,196 @@ public class MidiMessage {
         parseBytes();
     }
 
+    protected PropertyHandler createBasicPropertyHandler(final int byteIndex) {
+        return new PropertyHandler() {
+            @Override
+            public int get() {
+                return bytes[byteIndex];
+            }
+
+            @Override
+            public void set(int value) {
+                bytes[byteIndex] = (byte) value;
+            }
+        };
+    }
+
     protected void parseBytes() {
-        // TODO: Set type, populate properties
+        channel = (type.set == MessageType.Set.BASIC) ? bytes[0] & 0xF : -1;
+        setupPropertyHandlers();
+    }
+
+    /**
+     * Called when message type has changed.
+     */
+    protected void setupPropertyHandlers() {
+        // Clear any existing property handlers for re-initialization
+        properties.clear();
+        // Setting properties and handlers
+        switch (type) {
+            // Basic types
+            case NOTEOFF:
+            case NOTEON:
+                properties.put(PROPERTY_NAME_NOTE, createBasicPropertyHandler(1));
+                properties.put(PROPERTY_NAME_VELOCITY, createBasicPropertyHandler(2));
+                properties.put(PROPERTY_NAME_OCTAVE, new PropertyHandler() {
+                    @Override
+                    public int get() {
+                        return (bytes[1] / 12) - 1;
+                    }
+
+                    @Override
+                    public void set(int value) {
+                        // TODO: Modify the contents of property:note using value
+                    }
+                });
+                // TODO: How should string values be handled with properties interface?
+//                properties.put(PROPERTY_NAME_NOTE_STRING, /*TODO*/null);
+                break;
+            case POLY_AFTERTOUCH:
+                properties.put(PROPERTY_NAME_NOTE, createBasicPropertyHandler(1));
+                properties.put(PROPERTY_NAME_PRESSURE, createBasicPropertyHandler(2));
+                properties.put(PROPERTY_NAME_OCTAVE, new PropertyHandler() {
+                    @Override
+                    public int get() {
+                        return (bytes[1] / 12) - 1;
+                    }
+
+                    @Override
+                    public void set(int value) {
+                        // TODO: Modify the contents of property:note using value
+                    }
+                });
+                // TODO: How should string values be handled with properties interface?
+//                properties.put(PROPERTY_NAME_NOTE_STRING, /*TODO*/null);
+                break;
+            case CC:
+                properties.put(PROPERTY_NAME_CONTROLLER, createBasicPropertyHandler(1));
+                properties.put(PROPERTY_NAME_VALUE, createBasicPropertyHandler(2));
+                break;
+            case PROGRAM:
+                properties.put(PROPERTY_NAME_NUMBER, createBasicPropertyHandler(1));
+                break;
+            case CHANNEL_AFTERTOUCH:
+                properties.put(PROPERTY_NAME_PRESSURE, createBasicPropertyHandler(1));
+                break;
+            case PITCH:
+            // Extended types
+            case POSITION:
+                properties.put(PROPERTY_NAME_VALUE, new PropertyHandler() {
+                    @Override
+                    public int get() {
+                        return bytes[1] + (bytes[2] * 128);
+                    }
+
+                    @Override
+                    public void set(int value) {
+                        bytes[1] = (byte) (value & 0x7F);           // lsb
+                        bytes[2] = (byte) ((value & 0x3F80) >> 7);  // msb
+                    }
+                });
+                break;
+            case MTC:
+                properties.put(PROPERTY_NAME_MTC_TYPE, new PropertyHandler() {
+                    @Override
+                    public int get() {
+                        return (bytes[1] >> 4) & 0x07;
+                    }
+
+                    @Override
+                    public void set(int value) {
+                        // TODO: Verify this!
+                        bytes[1] = (byte) ((value << 4) & 0x07);
+                    }
+                });
+                properties.put(PROPERTY_NAME_VALUE, new PropertyHandler() {
+                    @Override
+                    public int get() {
+                        return bytes[1] & 0x0F;
+                    }
+
+                    @Override
+                    public void set(int value) {
+                        final PropertyHandler mtcType = properties.get(PROPERTY_NAME_MTC_TYPE);
+                        bytes[1] = (byte) ((mtcType.get() << 4) + value);
+                    }
+                });
+                break;
+            case SELECT:
+                properties.put(PROPERTY_NAME_SONG, createBasicPropertyHandler(1));
+                break;
+        }
     }
 
     public byte[] getBytes() {
-        return bytes;
+        return Arrays.copyOf(this.bytes, this.bytes.length);
     }
 
     public int getChannel() {
-        // TODO: Parse from byte[0]
-        return 0;
+        return (channel == -1) ? channel : channel + 1;
+    }
+
+    /**
+     * Set the channel of this message.
+     * @param channel - An integer value between 1 and 16.
+     */
+    public void setChannel(@IntRange(from=1,to=16) final int channel) {
+        if ((type.set == MessageType.Set.BASIC) && !(channel == (this.channel + 1))) {
+            this.channel = channel - 1;
+            this.bytes[0] = (byte) ((type.value << 4) + channel);
+        } else if (type.set == MessageType.Set.EXTENDED) {
+            this.channel = -1;
+        }
     }
 
     public MessageType getType() {
-        // TODO!
-        return null;
+        return type;
+    }
+
+    public void setMessageType(final MessageType type) {
+        if (type != this.type) {
+            if (type.set == MessageType.Set.BASIC) {
+                this.bytes[0] = (byte) ((type.value >> 4) + channel);
+            } else {
+                this.bytes[0] = (byte) type.value;
+                this.channel = -1;
+            }
+            setupPropertyHandlers();
+        }
+    }
+
+    public Map<String, Integer> getProperties() {
+        final Map<String, Integer> result = new HashMap<>(properties.size());
+        for (final Map.Entry<String, PropertyHandler> property : properties.entrySet()) {
+            result.put(property.getKey(), property.getValue().get());
+        }
+        return result;
+    }
+
+    public int getProperty(final String propertyName) throws PropertyNotDefinedException {
+        if (!properties.containsKey(propertyName)) {
+            throw new PropertyNotDefinedException(propertyName);
+        }
+        return properties.get(propertyName).get();
+    }
+
+    public boolean setProperty(final String propertyName, final int value) {
+        // TODO: Should get/set on this.bytes be synchronized?
+
+        // TODO: return TRUE if the property value was changed.
+        final PropertyHandler handler = properties.get(propertyName);
+        if (null == handler) {
+            // TODO: Throw exception if name does not exist in this.properties
+        }
+        if (handler.get() == value) {
+            return false;
+        }
+        handler.set(value);
+        return true;
+    }
+
+    public Set<String> getPropertyNames() {
+        return properties.keySet();
     }
 
     public int getOffset() {
@@ -126,6 +339,12 @@ public class MidiMessage {
 
     public long getTimestamp() {
         return timestamp;
+    }
+
+    public static class PropertyNotDefinedException extends IndexOutOfBoundsException {
+        public PropertyNotDefinedException(final String propertyName) {
+            super(String.format("The requested property (%s) is not defined.", propertyName));
+        }
     }
 
 }
