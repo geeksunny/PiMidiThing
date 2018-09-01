@@ -3,6 +3,11 @@ package com.radicalninja.pimidithing.midi;
 import android.support.annotation.IntRange;
 import android.support.annotation.Nullable;
 
+import com.radicalninja.pimidithing.util.ByteUtils;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -85,6 +90,9 @@ public class MidiMessage {
     private static final String[] NOTE_STRINGS =
             { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
+    public static final byte BYTE_SYSEX_START = (byte) 0xF0;
+    public static final byte BYTE_SYSEX_END = (byte) 0xF7;
+
     public static final String PROPERTY_NAME_NOTE = "note";
     public static final String PROPERTY_NAME_VELOCITY = "velocity";
     public static final String PROPERTY_NAME_OCTAVE = "octave";
@@ -95,6 +103,23 @@ public class MidiMessage {
     public static final String PROPERTY_NAME_NUMBER = "number";
     public static final String PROPERTY_NAME_MTC_TYPE = "mtc_type";
     public static final String PROPERTY_NAME_SONG = "song";
+
+    public static MidiMessage fromSysexFile(final File sysexFile) throws IOException {
+        final byte[] fileBytes = Files.readAllBytes(sysexFile.toPath());
+        // Verify content is sysex data. Trim excess bytes.
+        final int start = ByteUtils.firstOccuranceOfByte(fileBytes, BYTE_SYSEX_START);
+        final int end = ByteUtils.lastOccuranceOfByte(fileBytes, BYTE_SYSEX_END);
+        final MidiMessage message;
+        if (start == -1 || end == -1 || start >= end) {
+            throw new MalformedSysexBytesException(sysexFile.getPath(), fileBytes.length);
+        } else if (start == 0 && end == fileBytes.length - 1) {
+            message = new MidiMessage(fileBytes, 0, 0, 0);
+        } else {
+            final byte[] subset = Arrays.copyOfRange(fileBytes, start, end);
+            message = new MidiMessage(subset, 0, 0, 0);
+        }
+        return message;
+    }
 
     private final byte[] bytes;
     private final int offset;
@@ -339,6 +364,12 @@ public class MidiMessage {
 
     public long getTimestamp() {
         return timestamp;
+    }
+
+    public static class MalformedSysexBytesException extends IOException {
+        public MalformedSysexBytesException(final String path, final int length) {
+            super(String.format("Data in file (%s, %d bytes) is not a valid sysex message.", path, length));
+        }
     }
 
     public static class PropertyNotDefinedException extends IndexOutOfBoundsException {
