@@ -10,6 +10,7 @@ import android.media.midi.MidiManager;
 import android.media.midi.MidiOutputPort;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.github.mjdev.libaums.UsbMassStorageDevice;
 import com.radicalninja.pimidithing.App;
@@ -183,12 +184,14 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
         void onError(final String errorMessage);
     }
 
-    public abstract class OnDevicesOpenedListener implements MidiManager.OnDeviceOpenedListener {
-        abstract void onFinished();
-        abstract void onError(final String errorMessage);
+    public interface OnDevicesOpenedListener {
+        void onDeviceOpened(final MidiDevice device, final PortRecord portRecord);
+        void onFinished();
+        void onError(final String errorMessage);
     }
 
     private static final String CONFIG_FILENAME = "config.json";
+    private static final String TAG = MidiCore.class.getCanonicalName();
 
     private final DeviceCallback deviceCallback = new DeviceCallback();
     private final DeviceIndex index = new DeviceIndex();
@@ -375,7 +378,7 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
             @Override
             public void onDeviceOpened(MidiDevice device) {
                 try {
-                    onDevicesOpenedListener.onDeviceOpened(device);
+                    onDevicesOpenedListener.onDeviceOpened(device, currentEntry.getKey());
                     iterate();
                 } catch (Exception e) {
                     // TODO: Work exception into onError call...
@@ -416,21 +419,22 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
         // Open remaining PortRecords
         final OnDevicesOpenedListener onDevicesOpenedListener = new OnDevicesOpenedListener() {
             @Override
-            void onFinished() {
+            public void onFinished() {
                 listener.onControllersOpened(results);
             }
 
             @Override
-            void onError(String errorMessage) {
-                // TODO: Handle error...
+            public void onError(String errorMessage) {
+                listener.onError(errorMessage);
             }
 
             @Override
-            public void onDeviceOpened(MidiDevice device) {
+            public void onDeviceOpened(MidiDevice device, PortRecord portRecord) {
                 if (null == device) {
-                    // TODO: Handle error. Log something, probably?
+                    Log.d(TAG, String.format(Locale.US,
+                            "Encountered an error when opening input for PortRecord:%s",
+                            portRecord.getNickname()));
                 } else {
-                    final PortRecord portRecord = currentEntry.getKey();
                     final MidiOutputPort outputPort = device.openOutputPort(portRecord.port);
                     final MidiInputController controller =
                             new MidiInputController(outputPort, portRecord);
@@ -499,21 +503,22 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
         // Open remaining PortRecords
         final OnDevicesOpenedListener onDevicesOpenedListener = new OnDevicesOpenedListener() {
             @Override
-            void onFinished() {
+            public void onFinished() {
                 listener.onControllersOpened(results);
             }
 
             @Override
-            void onError(String errorMessage) {
-                // TODO: Handle error...
+            public void onError(String errorMessage) {
+                listener.onError(errorMessage);
             }
 
             @Override
-            public void onDeviceOpened(MidiDevice device) {
+            public void onDeviceOpened(MidiDevice device, PortRecord portRecord) {
                 if (null == device) {
-                    // TODO: Handle error. Log something, probably?
+                    Log.d(TAG, String.format(Locale.US,
+                            "Encountered an error when opening output for PortRecord:%s",
+                            portRecord.getNickname()));
                 } else {
-                    final PortRecord portRecord = currentEntry.getKey();
                     final MidiInputPort inputPort = device.openInputPort(portRecord.port);
                     final MidiOutputController controller =
                             new MidiOutputController(inputPort, portRecord);
