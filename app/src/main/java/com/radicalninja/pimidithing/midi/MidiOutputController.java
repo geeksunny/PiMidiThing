@@ -8,7 +8,10 @@ public class MidiOutputController extends MidiDeviceController {
 
     private final MidiInputPort midiPort;
 
-    public MidiOutputController(final MidiInputPort midiInputPort) {
+    public MidiOutputController(final MidiInputPort midiInputPort,
+                                final MidiCore.PortRecord portRecord) {
+
+        super(portRecord);
         this.midiPort = midiInputPort;
     }
 

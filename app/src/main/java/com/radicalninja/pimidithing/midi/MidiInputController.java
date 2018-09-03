@@ -19,7 +19,10 @@ public class MidiInputController extends MidiDeviceController {
     private final MidiInputReceiver receiver = new MidiInputReceiver();
     private final MidiOutputPort sourcePort;
 
-    public MidiInputController(final MidiOutputPort midiOutputPort) {
+    public MidiInputController(final MidiOutputPort midiOutputPort,
+                               final MidiCore.PortRecord portRecord) {
+
+        super(portRecord);
         this.sourcePort = midiOutputPort;
         this.sourcePort.connect(receiver);
     }

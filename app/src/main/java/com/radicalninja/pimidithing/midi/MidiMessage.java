@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -368,13 +369,15 @@ public class MidiMessage {
 
     public static class MalformedSysexBytesException extends IOException {
         public MalformedSysexBytesException(final String path, final int length) {
-            super(String.format("Data in file (%s, %d bytes) is not a valid sysex message.", path, length));
+            super(String.format(Locale.US,
+                    "Data in file (%s, %d bytes) is not a valid sysex message.", path, length));
         }
     }
 
     public static class PropertyNotDefinedException extends IndexOutOfBoundsException {
         public PropertyNotDefinedException(final String propertyName) {
-            super(String.format("The requested property (%s) is not defined.", propertyName));
+            super(String.format(Locale.US,
+                    "The requested property (%s) is not defined.", propertyName));
         }
     }
 
