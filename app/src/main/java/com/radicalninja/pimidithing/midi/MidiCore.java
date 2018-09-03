@@ -172,6 +172,7 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
         }
     }
 
+    // TODO: Consolidate the listener interfaces/classes below if possible
     public interface OnControllerOpenedListener<T extends MidiDeviceController> {
         void onControllerOpened(final T input);
         void onError(final String errorMessage);
@@ -180,6 +181,11 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     public interface OnControllersOpenedListener<T extends MidiDeviceController> {
         void onControllersOpened(final List<T> input);
         void onError(final String errorMessage);
+    }
+
+    public abstract class OnDevicesOpenedListener implements MidiManager.OnDeviceOpenedListener {
+        abstract void onFinished();
+        abstract void onError(final String errorMessage);
     }
 
     private static final String CONFIG_FILENAME = "config.json";
@@ -305,10 +311,9 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     }
 
     /**
-     * TODO
-     * @param portRecord
-     * @param listener
-     * @return
+     * Open a single MIDI Input Controller.
+     * @param portRecord - A PortRecord describing the desired input.
+     * @param listener - Callback to be executed upon completion of the opening process.
      */
     public void openInput(final PortRecord portRecord,
                           final OnControllerOpenedListener<MidiInputController> listener) {
@@ -336,14 +341,13 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     }
 
     /**
-     * TODO
-     * @param portRecords
+     * Shared method for opening multiple MIDI devices at once.
+     * @param portRecords - A list of the PortRecords you wish to open.
+     * @param onDevicesOpenedListener
      */
-    public void openInputs(final List<PortRecord> portRecords,
-                           final OnControllersOpenedListener<MidiInputController> listener) {
+    public void openDevices(final List<PortRecord> portRecords,
+                            final OnDevicesOpenedListener onDevicesOpenedListener) {
 
-        // TODO: Some of this could be templated and consolidated into a shared `openDevices()` method...
-        final List<MidiInputController> results = new ArrayList<>(portRecords.size());
         final Map<PortRecord, MidiDeviceInfo> infoMap = fetchDeviceInfos(portRecords);
         final Iterator<Map.Entry<PortRecord, MidiDeviceInfo>> iterator =
                 infoMap.entrySet().iterator();
@@ -360,31 +364,22 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
                         iterator.remove();
                         manager.openDevice(currentEntry.getValue(), this, null);
                     } else {
-                        listener.onControllersOpened(results);
+                        onDevicesOpenedListener.onFinished();
                     }
                 } catch (Exception e) {
                     // TODO: Work exception into onError call...
-                    listener.onError("An exception caused the open operation to abort.");
+                    onDevicesOpenedListener.onError("An exception caused the open operation to abort.");
                 }
             }
 
             @Override
             public void onDeviceOpened(MidiDevice device) {
                 try {
-                    if (null == device) {
-                        // TODO: Handle error. Log something, probably?
-                    } else {
-                        final PortRecord portRecord = currentEntry.getKey();
-                        final MidiOutputPort outputPort = device.openOutputPort(portRecord.port);
-                        final MidiInputController controller =
-                                new MidiInputController(outputPort, portRecord);
-                        index.putInput(portRecord, controller);
-                        results.add(controller);
-                    }
+                    onDevicesOpenedListener.onDeviceOpened(device);
                     iterate();
                 } catch (Exception e) {
                     // TODO: Work exception into onError call...
-                    listener.onError("An exception caused the open operation to abort.");
+                    onDevicesOpenedListener.onError("An exception caused the open operation to abort.");
                 }
             }
         }
@@ -395,8 +390,62 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     }
 
     /**
-     * TODO
-     * @param portRecord
+     * Open one or more more than one MIDI Input Controller.
+     * @param portRecords - PortRecords describing the inputs to open.
+     * @param listener - Callback to be executed upon completion of the opening process.
+     */
+    public void openInputs(final List<PortRecord> portRecords,
+                           final OnControllersOpenedListener<MidiInputController> listener) {
+
+        final List<MidiInputController> results = new ArrayList<>(portRecords.size());
+        // Checking existing controllers for matches
+        final Iterator<PortRecord> i = portRecords.iterator();
+        while (i.hasNext()) {
+            final PortRecord record = i.next();
+            final MidiInputController controller = index.getInput(record);
+            if (null != controller) {
+                results.add(controller);
+                i.remove();
+            }
+        }
+        // If all matched, execute callback
+        if (portRecords.isEmpty()) {
+            listener.onControllersOpened(results);
+            return;
+        }
+        // Open remaining PortRecords
+        final OnDevicesOpenedListener onDevicesOpenedListener = new OnDevicesOpenedListener() {
+            @Override
+            void onFinished() {
+                listener.onControllersOpened(results);
+            }
+
+            @Override
+            void onError(String errorMessage) {
+                // TODO: Handle error...
+            }
+
+            @Override
+            public void onDeviceOpened(MidiDevice device) {
+                if (null == device) {
+                    // TODO: Handle error. Log something, probably?
+                } else {
+                    final PortRecord portRecord = currentEntry.getKey();
+                    final MidiOutputPort outputPort = device.openOutputPort(portRecord.port);
+                    final MidiInputController controller =
+                            new MidiInputController(outputPort, portRecord);
+                    index.putInput(portRecord, controller);
+                    results.add(controller);
+                }
+            }
+        };
+        openDevices(portRecords, onDevicesOpenedListener);
+    }
+
+    /**
+     * Open a single MIDI Output Controller.
+     * @param portRecord - A PortRecord describing the desired output.
+     * @param listener - Callback to be executed upon completion of the opening process.
      */
     public void openOutput(final PortRecord portRecord,
                            final OnControllerOpenedListener<MidiOutputController> listener) {
@@ -424,61 +473,56 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     }
 
     /**
-     * TODO
-     * @param portRecords
+     * Open one or more more than one MIDI Output Controller.
+     * @param portRecords - PortRecords describing the outputs to open.
+     * @param listener - Callback to be executed upon completion of the opening process.
      */
     public void openOutputs(final List<PortRecord> portRecords,
                             final OnControllersOpenedListener<MidiOutputController> listener) {
 
         final List<MidiOutputController> results = new ArrayList<>(portRecords.size());
-        final Map<PortRecord, MidiDeviceInfo> infoMap = fetchDeviceInfos(portRecords);
-        final Iterator<Map.Entry<PortRecord, MidiDeviceInfo>> iterator =
-                infoMap.entrySet().iterator();
+        // Checking existing controllers for matches
+        final Iterator<PortRecord> i = portRecords.iterator();
+        while (i.hasNext()) {
+            final PortRecord record = i.next();
+            final MidiOutputController controller = index.getOutput(record);
+            if (null != controller) {
+                results.add(controller);
+                i.remove();
+            }
+        }
+        // If all matched, execute callback
+        if (portRecords.isEmpty()) {
+            listener.onControllersOpened(results);
+            return;
+        }
+        // Open remaining PortRecords
+        final OnDevicesOpenedListener onDevicesOpenedListener = new OnDevicesOpenedListener() {
+            @Override
+            void onFinished() {
+                listener.onControllersOpened(results);
+            }
 
-        // TODO: This needs to be tested and verified with a large number of open requests at once.
-        final class RecursiveDeviceOpenedListener implements MidiManager.OnDeviceOpenedListener {
-
-            private Map.Entry<PortRecord, MidiDeviceInfo> currentEntry;
-
-            private void iterate() {
-                try {
-                    if (iterator.hasNext()) {
-                        currentEntry = iterator.next();
-                        iterator.remove();
-                        manager.openDevice(currentEntry.getValue(), this, null);
-                    } else {
-                        listener.onControllersOpened(results);
-                    }
-                } catch (Exception e) {
-                    // TODO: Work exception into onError call...
-                    listener.onError("An exception caused the open operation to abort.");
-                }
+            @Override
+            void onError(String errorMessage) {
+                // TODO: Handle error...
             }
 
             @Override
             public void onDeviceOpened(MidiDevice device) {
-                try {
-                    if (null == device) {
-                        // TODO: Handle error. Log something, probably?
-                    } else {
-                        final PortRecord portRecord = currentEntry.getKey();
-                        final MidiInputPort inputPort = device.openInputPort(portRecord.port);
-                        final MidiOutputController controller =
-                                new MidiOutputController(inputPort, portRecord);
-                        index.putOutput(portRecord, controller);
-                        results.add(controller);
-                    }
-                    iterate();
-                } catch (Exception e) {
-                    // TODO: Work exception into onError call...
-                    listener.onError("An exception caused the open operation to abort.");
+                if (null == device) {
+                    // TODO: Handle error. Log something, probably?
+                } else {
+                    final PortRecord portRecord = currentEntry.getKey();
+                    final MidiInputPort inputPort = device.openInputPort(portRecord.port);
+                    final MidiOutputController controller =
+                            new MidiOutputController(inputPort, portRecord);
+                    index.putOutput(portRecord, controller);
+                    results.add(controller);
                 }
             }
-        }
-
-        final RecursiveDeviceOpenedListener deviceOpenedListener =
-                new RecursiveDeviceOpenedListener();
-        deviceOpenedListener.iterate();
+        };
+        openDevices(portRecords, onDevicesOpenedListener);
     }
 
     @Override
