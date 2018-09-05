@@ -16,7 +16,7 @@ public class ParkableSubtaskThread extends Thread {
         boolean isParked();
         // TODO: Add ParkUntil/ParkNanos methods
         @Nullable
-        <T> T park() throws InterruptedException;
+        <T> T park(final Class<T> resultClass) throws InterruptedException;
     }
 
     public interface RetrievingValet {
@@ -26,7 +26,7 @@ public class ParkableSubtaskThread extends Thread {
     }
 
     private final AtomicBoolean parked = new AtomicBoolean(false);
-    private final ConcurrentLinkedQueue resultQueue = new ConcurrentLinkedQueue();
+    private final ConcurrentLinkedQueue<Object> resultQueue = new ConcurrentLinkedQueue<>();
 
     public ParkableSubtaskThread(final ParkableThreadRunnable target) {
         // TODO: Figure out a way to re-use thread for other Runnables after initial run
@@ -35,9 +35,9 @@ public class ParkableSubtaskThread extends Thread {
         target.retrievingValet = retrievingValet;
     }
 
-    final ParkingValet parkingValet = new ParkingValet() {
+    private final ParkingValet parkingValet = new ParkingValet() {
         @Override
-        public <T> T park() throws InterruptedException {
+        public <T> T park(final Class<T> resultClass) throws InterruptedException {
             // If this is called while already parked, we'll ignore it.
             if (ParkableSubtaskThread.this.parked.get()) {
                 // TODO: Should some logging take place when ignored?
@@ -57,7 +57,7 @@ public class ParkableSubtaskThread extends Thread {
         }
     };
 
-    final RetrievingValet retrievingValet = new RetrievingValet() {
+    private final RetrievingValet retrievingValet = new RetrievingValet() {
         @Override
         public boolean isParked() {
             return ParkableSubtaskThread.this.isParked();
@@ -128,14 +128,20 @@ public class ParkableSubtaskThread extends Thread {
             subtaskRunnable.retrievingValet = retrievingValet;
             subtaskHandler = new Handler(getSubtaskLooper());
             subtaskHandler.post(subtaskRunnable);
-            return parkingValet.park();
+            return parkingValet.park(subtaskRunnable.resultClass);
         }
 
     }
 
     public static abstract class SubtaskThreadRunnable<T> implements Runnable {
 
+        private final Class<T> resultClass;
+
         private RetrievingValet retrievingValet;
+
+        public SubtaskThreadRunnable(final Class<T> resultClass) {
+            this.resultClass = resultClass;
+        }
 
         public abstract void run(final RetrievingValet retrievingValet);
 
