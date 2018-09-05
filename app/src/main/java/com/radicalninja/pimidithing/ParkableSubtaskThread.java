@@ -9,34 +9,35 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 
-public class ParkableSubtaskThread<T> extends Thread {
+public class ParkableSubtaskThread extends Thread {
 
     // TODO: Should these interfaces be converted into classes? They probably won't be useful anywhere else.
-    public interface ParkingValet<T> {
+    public interface ParkingValet {
         boolean isParked();
         // TODO: Add ParkUntil/ParkNanos methods
         @Nullable
-        T park() throws InterruptedException;
+        <T> T park() throws InterruptedException;
     }
 
-    public interface RetrievingValet<T> {
+    public interface RetrievingValet {
         boolean isParked();
         void unpark();
-        void unpark(final T result);
+        <T> void unpark(final T result);
     }
 
     private final AtomicBoolean parked = new AtomicBoolean(false);
-    private final ConcurrentLinkedQueue<T> resultQueue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue resultQueue = new ConcurrentLinkedQueue();
 
-    public ParkableSubtaskThread(final ParkableThreadRunnable<T> target) {
+    public ParkableSubtaskThread(final ParkableThreadRunnable target) {
+        // TODO: Figure out a way to re-use thread for other Runnables after initial run
         super(target);
         target.parkingValet = parkingValet;
         target.retrievingValet = retrievingValet;
     }
 
-    final ParkingValet<T> parkingValet = new ParkingValet<T>() {
+    final ParkingValet parkingValet = new ParkingValet() {
         @Override
-        public T park() throws InterruptedException {
+        public <T> T park() throws InterruptedException {
             // If this is called while already parked, we'll ignore it.
             if (ParkableSubtaskThread.this.parked.get()) {
                 // TODO: Should some logging take place when ignored?
@@ -47,7 +48,7 @@ public class ParkableSubtaskThread<T> extends Thread {
             if (Thread.interrupted()) {
                 throw new InterruptedException("Thread was interrupted before .unpark() was called.");
             }
-            return resultQueue.poll();
+            return (T) resultQueue.poll();
         }
 
         @Override
@@ -56,7 +57,7 @@ public class ParkableSubtaskThread<T> extends Thread {
         }
     };
 
-    final RetrievingValet<T> retrievingValet = new RetrievingValet<T>() {
+    final RetrievingValet retrievingValet = new RetrievingValet() {
         @Override
         public boolean isParked() {
             return ParkableSubtaskThread.this.isParked();
@@ -68,7 +69,7 @@ public class ParkableSubtaskThread<T> extends Thread {
         }
 
         @Override
-        public void unpark(final T result) {
+        public <T> void unpark(final T result) {
             if (null != result) {
                 resultQueue.add(result);
             }
@@ -86,27 +87,27 @@ public class ParkableSubtaskThread<T> extends Thread {
         return parked.get();
     }
 
-    public static abstract class ParkableThreadRunnable<T> implements Runnable {
+    public static abstract class ParkableThreadRunnable implements Runnable {
 
         private static final String HANDLER_THREAD_NAME = "ParkableThreadSubtaskHandler";
 
         private Handler subtaskHandler;
         private HandlerThread subtaskThread;
-        private ParkingValet<T> parkingValet;
-        private RetrievingValet<T> retrievingValet;
+        private ParkingValet parkingValet;
+        private RetrievingValet retrievingValet;
 
-        public abstract void run(final ParkingValet<T> parkingValet);
+        public abstract void run(final ParkingValet parkingValet);
 
         @Override
         public void run() {
             run(parkingValet);
         }
 
-        public ParkingValet<T> getParkingValet() {
+        public ParkingValet getParkingValet() {
             return parkingValet;
         }
 
-        public RetrievingValet<T> getRetrievingValet() {
+        public RetrievingValet getRetrievingValet() {
             return retrievingValet;
         }
 
@@ -118,7 +119,7 @@ public class ParkableSubtaskThread<T> extends Thread {
             return subtaskThread.getLooper();
         }
 
-        public T parkAndExecSubtask(final SubtaskThreadRunnable<T> subtaskRunnable)
+        public <T> T parkAndExecSubtask(final SubtaskThreadRunnable<T> subtaskRunnable)
                 throws InterruptedException {
 
             if (null != subtaskHandler) {
@@ -134,9 +135,9 @@ public class ParkableSubtaskThread<T> extends Thread {
 
     public static abstract class SubtaskThreadRunnable<T> implements Runnable {
 
-        private RetrievingValet<T> retrievingValet;
+        private RetrievingValet retrievingValet;
 
-        public abstract void run(final RetrievingValet<T> retrievingValet);
+        public abstract void run(final RetrievingValet retrievingValet);
 
         @Override
         public void run() {
