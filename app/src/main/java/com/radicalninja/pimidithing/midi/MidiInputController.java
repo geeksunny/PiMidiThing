@@ -11,12 +11,12 @@ import java.util.List;
 public class MidiInputController extends MidiDeviceController {
 
     public interface MessageListener {
-        boolean onMessage(final MidiMessage message);
+        boolean onMessage(final MidiInputController input, final MidiMessage message);
     }
 
     private static final String TAG = MidiInputController.class.getCanonicalName();
 
-    private final MidiInputReceiver receiver = new MidiInputReceiver();
+    private final MidiInputReceiver receiver = new MidiInputReceiver(this);
     private final MidiOutputPort sourcePort;
 
     public MidiInputController(final MidiOutputPort midiOutputPort,
@@ -54,14 +54,19 @@ public class MidiInputController extends MidiDeviceController {
 
     public static class MidiInputReceiver extends MidiReceiver {
 
-        final private List<MessageListener> listeners = new ArrayList<>();
+        private final MidiInputController inputController;
+        private final List<MessageListener> listeners = new ArrayList<>();
+
+        public MidiInputReceiver(final MidiInputController inputController) {
+            this.inputController = inputController;
+        }
 
         @Override
         public void onSend(byte[] data, int offset, int count, long timestamp) throws IOException {
             final MidiMessage message = new MidiMessage(data, offset, count, timestamp);
             synchronized (this) {
                 for (final MessageListener listener : listeners) {
-                    final boolean result = listener.onMessage(message);
+                    final boolean result = listener.onMessage(inputController, message);
                     if (result) {
                         Log.d(TAG, "Message chain handled early.");
                         break;
