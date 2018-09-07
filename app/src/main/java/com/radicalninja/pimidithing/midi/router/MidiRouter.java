@@ -1,6 +1,4 @@
-package com.radicalninja.pimidithing.midi;
-
-import com.radicalninja.pimidithing.midi.router.RouterConfig;
+package com.radicalninja.pimidithing.midi.router;
 
 public class MidiRouter {
 

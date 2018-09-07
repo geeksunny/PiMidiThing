@@ -9,12 +9,14 @@ import android.media.midi.MidiInputPort;
 import android.media.midi.MidiManager;
 import android.media.midi.MidiOutputPort;
 import android.os.Bundle;
+import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 
 import com.github.mjdev.libaums.UsbMassStorageDevice;
 import com.radicalninja.pimidithing.App;
 import com.radicalninja.pimidithing.R;
+import com.radicalninja.pimidithing.midi.router.MidiRouter;
 import com.radicalninja.pimidithing.midi.router.RouterConfig;
 import com.radicalninja.pimidithing.usb.MassStorageController;
 
@@ -180,7 +182,7 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     }
 
     public interface OnControllersOpenedListener<T extends MidiDeviceController> {
-        void onControllersOpened(final List<T> input);
+        void onControllersOpened(final List<T> inputs);
         void onError(final String errorMessage);
     }
 
@@ -228,6 +230,21 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
         // TODO: Check if config file exists in internal storage
         // TODO: IF NOT - Open from raw / assets, save to internal storage.
         // TODO: IF YES - RouterConfig.fromFile()
+    }
+
+    public PortRecord getPortRecord(final String nickname) {
+        return index.getRecord(nickname);
+    }
+
+    public List<PortRecord> getPortRecords(final List<String> nicknames) {
+        final List<PortRecord> result = new ArrayList<>(nicknames.size());
+        for (final String nickname : nicknames) {
+            final PortRecord record = index.getRecord(nickname);
+            if (null != record) {
+                result.add(record);
+            }
+        }
+        return result;
     }
 
     /**
@@ -319,7 +336,8 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
      * @param listener - Callback to be executed upon completion of the opening process.
      */
     public void openInput(final PortRecord portRecord,
-                          final OnControllerOpenedListener<MidiInputController> listener) {
+                          final OnControllerOpenedListener<MidiInputController> listener,
+                          final Handler openHandler) {
 
         final MidiInputController controller = index.getInput(portRecord);
         if (null != controller) {
@@ -340,16 +358,18 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
                     listener.onControllerOpened(controller);
                 }
             }
-        }, null);
+        }, openHandler);
     }
 
     /**
      * Shared method for opening multiple MIDI devices at once.
      * @param portRecords - A list of the PortRecords you wish to open.
      * @param onDevicesOpenedListener
+     * @param openHandler - Optional handler to be used by the MIDI manager.
      */
-    public void openDevices(final List<PortRecord> portRecords,
-                            final OnDevicesOpenedListener onDevicesOpenedListener) {
+    protected void openDevices(final List<PortRecord> portRecords,
+                            final OnDevicesOpenedListener onDevicesOpenedListener,
+                            final Handler openHandler) {
 
         final Map<PortRecord, MidiDeviceInfo> infoMap = fetchDeviceInfos(portRecords);
         final Iterator<Map.Entry<PortRecord, MidiDeviceInfo>> iterator =
@@ -365,7 +385,7 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
                     if (iterator.hasNext()) {
                         currentEntry = iterator.next();
                         iterator.remove();
-                        manager.openDevice(currentEntry.getValue(), this, null);
+                        manager.openDevice(currentEntry.getValue(), this, openHandler);
                     } else {
                         onDevicesOpenedListener.onFinished();
                     }
@@ -396,9 +416,11 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
      * Open one or more more than one MIDI Input Controller.
      * @param portRecords - PortRecords describing the inputs to open.
      * @param listener - Callback to be executed upon completion of the opening process.
+     * @param openHandler - Optional handler to be used by the MIDI manager.
      */
     public void openInputs(final List<PortRecord> portRecords,
-                           final OnControllersOpenedListener<MidiInputController> listener) {
+                           final OnControllersOpenedListener<MidiInputController> listener,
+                           final Handler openHandler) {
 
         final List<MidiInputController> results = new ArrayList<>(portRecords.size());
         // Checking existing controllers for matches
@@ -443,16 +465,18 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
                 }
             }
         };
-        openDevices(portRecords, onDevicesOpenedListener);
+        openDevices(portRecords, onDevicesOpenedListener, openHandler);
     }
 
     /**
      * Open a single MIDI Output Controller.
      * @param portRecord - A PortRecord describing the desired output.
      * @param listener - Callback to be executed upon completion of the opening process.
+     * @param openHandler - Optional handler to be used by the MIDI manager.
      */
     public void openOutput(final PortRecord portRecord,
-                           final OnControllerOpenedListener<MidiOutputController> listener) {
+                           final OnControllerOpenedListener<MidiOutputController> listener,
+                           final Handler openHandler) {
 
         final MidiOutputController controller = index.getOutput(portRecord);
         if (null != controller) {
@@ -473,16 +497,18 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
                     listener.onControllerOpened(controller);
                 }
             }
-        }, null);
+        }, openHandler);
     }
 
     /**
      * Open one or more more than one MIDI Output Controller.
      * @param portRecords - PortRecords describing the outputs to open.
      * @param listener - Callback to be executed upon completion of the opening process.
+     * @param openHandler - Optional handler to be used by the MIDI manager.
      */
     public void openOutputs(final List<PortRecord> portRecords,
-                            final OnControllersOpenedListener<MidiOutputController> listener) {
+                            final OnControllersOpenedListener<MidiOutputController> listener,
+                            final Handler openHandler) {
 
         final List<MidiOutputController> results = new ArrayList<>(portRecords.size());
         // Checking existing controllers for matches
@@ -527,7 +553,7 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
                 }
             }
         };
-        openDevices(portRecords, onDevicesOpenedListener);
+        openDevices(portRecords, onDevicesOpenedListener, openHandler);
     }
 
     @Override
