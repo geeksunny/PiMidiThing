@@ -21,14 +21,16 @@ class RouterMapping {
     private final List<MidiInputController> inputs = new ArrayList<>();
     private final List<MidiOutputController> outputs = new ArrayList<>();
     private final List<BaseFilter> filters = new ArrayList<>();
+    private final String name;
 
     private boolean activated = false;
     private MidiInputController.MessageListener midiMessageListener;
 
     /* package */
-    RouterMapping(final List<MidiInputController> inputs,
-                         final List<MidiOutputController> outputs) {
+    RouterMapping(final String name, final List<MidiInputController> inputs,
+                  final List<MidiOutputController> outputs) {
 
+        this.name = name;
         this.inputs.addAll(inputs);
         this.outputs.addAll(outputs);
     }

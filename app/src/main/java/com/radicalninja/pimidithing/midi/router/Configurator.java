@@ -63,7 +63,12 @@ import java.util.Map;
                     final List<MidiOutputController> outputControllers =
                             openOutputs(outputRecords, parkingValet, getRetrievingValet(), callbackHandler);
                     // - Filters
-                    final Map<String, JsonObject> filterConfigs = mappingConfig.getFilters();
+                    // TODO!!
+                    //final Map<String, JsonObject> filterConfigs = mappingConfig.getFilters();
+                    // - Mapping
+                    final RouterMapping mapping =
+                            new RouterMapping(mappingName, inputControllers, outputControllers);
+                    midiRouter.addMapping(mapping);
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
