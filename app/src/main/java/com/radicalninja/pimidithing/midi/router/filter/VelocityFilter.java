@@ -5,13 +5,17 @@ import com.radicalninja.pimidithing.midi.MidiMessage;
 
 public class VelocityFilter extends BaseFilter {
 
+    private int min;
+    private int max;
+    private String mode;
+
     public VelocityFilter(JsonObject settings) {
         super(settings);
     }
 
     @Override
     public void onSettings(JsonObject settings) {
-        // TODO
+        // TODO: min, max, mode
     }
 
     @Override
