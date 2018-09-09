@@ -1,6 +1,7 @@
 package com.radicalninja.pimidithing.midi;
 
 import android.support.annotation.IntRange;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
 import com.radicalninja.pimidithing.util.ByteUtils;
@@ -49,6 +50,15 @@ public class MidiMessage {
                 }
             }
             return null;
+        }
+
+        @Nullable
+        public static MessageType fromString(@NonNull final String name) {
+            try {
+                return MessageType.valueOf(name.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
         }
 
         public static final MessageType[] basicTypes = {

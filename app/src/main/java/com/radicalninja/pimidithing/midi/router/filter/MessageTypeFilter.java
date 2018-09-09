@@ -1,13 +1,21 @@
 package com.radicalninja.pimidithing.midi.router.filter;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.radicalninja.pimidithing.midi.MidiMessage;
-import com.radicalninja.pimidithing.util.NumberList;
+import com.radicalninja.pimidithing.util.NumberArray;
 
 public class MessageTypeFilter extends BaseFilter {
 
-    private NumberList whitelist = new NumberList();
-    private NumberList blacklist = new NumberList();
+    private static final String TAG = MessageTypeFilter.class.getCanonicalName();
+
+    private static final String KEY_WHITELIST = "whitelist";
+    private static final String KEY_BLACKLIST = "blacklist";
+
+    private NumberArray whitelist = new NumberArray();
+    private NumberArray blacklist = new NumberArray();
 
     public MessageTypeFilter(JsonObject settings) {
         super(settings);
@@ -15,7 +23,40 @@ public class MessageTypeFilter extends BaseFilter {
 
     @Override
     public void onSettings(JsonObject settings) {
-        // TODO
+        if (settings.has(KEY_WHITELIST)) {
+            final JsonArray json = settings.getAsJsonArray(KEY_WHITELIST);
+            for (final JsonElement item : json) {
+                try {
+                    final JsonPrimitive _item = item.getAsJsonPrimitive();
+                    if (_item.isNumber()) {
+                        whitelist.add(_item.getAsInt());
+                    } else if (_item.isString()) {
+                        final String typeString = _item.getAsString();
+                        // TODO: Look up numerical value of message type string
+                        // TODO: Add number to whitelist.
+                    }
+                } catch (ClassCastException | IllegalStateException e) {
+                    // TODO: Handle error
+                }
+            }
+        }
+        if (settings.has(KEY_BLACKLIST)) {
+            final JsonArray json = settings.getAsJsonArray(KEY_BLACKLIST);
+            for (final JsonElement item : json) {
+                try {
+                    final JsonPrimitive _item = item.getAsJsonPrimitive();
+                    if (_item.isNumber()) {
+                        blacklist.add(_item.getAsInt());
+                    } else if (_item.isString()) {
+                        final String typeString = _item.getAsString();
+                        // TODO: Look up numerical value of message type string
+                        // TODO: Add number to blacklist.
+                    }
+                } catch (ClassCastException | IllegalStateException e) {
+                    // TODO: Handle error
+                }
+            }
+        }
     }
 
     @Override
