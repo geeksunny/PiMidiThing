@@ -46,6 +46,7 @@ public class NumberMap extends SparseIntArray implements Iterable<NumberMap.Entr
     }
 
     public static final class Entry {
+
         private final int key, value;
 
         public Entry(final int key, final int value) {
@@ -60,6 +61,7 @@ public class NumberMap extends SparseIntArray implements Iterable<NumberMap.Entr
         public int getValue() {
             return value;
         }
+
     }
 
 }

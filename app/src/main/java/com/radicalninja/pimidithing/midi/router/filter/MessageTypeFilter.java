@@ -61,8 +61,23 @@ public class MessageTypeFilter extends BaseFilter {
 
     @Override
     public JsonObject getSettings() {
-        // TODO
-        return null;
+        final JsonObject json = new JsonObject();
+
+        final JsonArray jsonWhitelist = new JsonArray(whitelist.size());
+        NumberArray.NumberArrayIterator i = whitelist.iterator();
+        while (i.hasNext()) {
+            jsonWhitelist.add(i.nextInt());
+        }
+        json.add(KEY_WHITELIST, jsonWhitelist);
+
+        final JsonArray jsonBlacklist = new JsonArray(blacklist.size());
+        i = blacklist.iterator();
+        while (i.hasNext()) {
+            jsonBlacklist.add(i.nextInt());
+        }
+        json.add(KEY_BLACKLIST, jsonBlacklist);
+
+        return json;
     }
 
     @Override

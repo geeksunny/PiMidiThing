@@ -1,4 +1,4 @@
-package com.radicalninja.pimidithing.midi.router.adjuster;
+package com.radicalninja.pimidithing.midi.router.filter;
 
 import com.radicalninja.pimidithing.midi.MidiMessage;
 

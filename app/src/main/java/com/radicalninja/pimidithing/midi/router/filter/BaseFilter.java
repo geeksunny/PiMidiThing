@@ -42,7 +42,49 @@ public abstract class BaseFilter {
     }
 
     public static class Result {
-        // TODO: Build class around requirements of process(msg)
+
+        static Result failed() {
+            return new Result(false, true);
+        }
+
+        static Result consumed() {
+            return new Result(true, false);
+        }
+
+        private final boolean consumed, failed;
+        private final MidiMessage[] messages;
+
+        Result(final boolean consumed, final boolean failed) {
+            this.consumed = consumed;
+            this.failed = failed;
+            messages = null;
+        }
+
+        Result(MidiMessage message) {
+            consumed = failed = false;
+            this.messages = new MidiMessage[]{ message };
+        }
+
+        Result(MidiMessage[] messages) {
+            consumed = failed = false;
+            this.messages = messages;
+        }
+
+        public boolean isConsumed() {
+            return consumed;
+        }
+
+        public boolean isFailed() {
+            return failed;
+        }
+
+        public MidiMessage[] getMessages() {
+            return messages;
+        }
+
+        public int messageCount() {
+            return (null != messages) ? messages.length : 0;
+        }
     }
 
 }

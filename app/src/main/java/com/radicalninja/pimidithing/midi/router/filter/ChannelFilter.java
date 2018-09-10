@@ -1,12 +1,12 @@
 package com.radicalninja.pimidithing.midi.router.filter;
 
-import android.util.SparseIntArray;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.radicalninja.pimidithing.midi.MidiMessage;
 import com.radicalninja.pimidithing.util.NumberArray;
+import com.radicalninja.pimidithing.util.NumberMap;
 
 import java.util.Map;
 
@@ -18,7 +18,7 @@ public class ChannelFilter extends BaseFilter {
     private static final String KEY_WHITELIST = "whitelist";
     private static final String KEY_BLACKLIST = "blacklist";
 
-    private SparseIntArray map = new SparseIntArray();
+    private NumberMap map = new NumberMap();
     private NumberArray whitelist = new NumberArray();
     private NumberArray blacklist = new NumberArray();
 
@@ -68,14 +68,48 @@ public class ChannelFilter extends BaseFilter {
 
     @Override
     public JsonObject getSettings() {
-        // TODO map, whitelist, blacklist
-        return null;
+        final JsonObject json = new JsonObject();
+
+        final JsonObject jsonMap = new JsonObject();
+        for (final NumberMap.Entry entry : map) {
+            jsonMap.add(String.valueOf(entry.getKey()), new JsonPrimitive(entry.getValue()));
+        }
+        json.add(KEY_MAP, jsonMap);
+
+        final JsonArray jsonWhitelist = new JsonArray(whitelist.size());
+        NumberArray.NumberArrayIterator i = whitelist.iterator();
+        while (i.hasNext()) {
+            jsonWhitelist.add(i.nextInt());
+        }
+        json.add(KEY_WHITELIST, jsonWhitelist);
+
+        final JsonArray jsonBlacklist = new JsonArray(blacklist.size());
+        i = blacklist.iterator();
+        while (i.hasNext()) {
+            jsonBlacklist.add(i.nextInt());
+        }
+        json.add(KEY_BLACKLIST, jsonBlacklist);
+
+        return json;
     }
 
     @Override
     Result onProcess(MidiMessage message) {
-        // TODO!!!
-        return null;
+        final int channel = message.getChannel();
+        if (!whitelist.isEmpty()) {
+            if (!whitelist.has(channel)) {
+                return Result.failed();
+            }
+        } else if (!blacklist.isEmpty()) {
+            if (blacklist.has(channel)) {
+                return Result.failed();
+            }
+        }
+        final int mapping = map.get(channel, -1);
+        if (mapping > 0) {
+            message.setChannel(mapping);
+        }
+        return new Result(message);
     }
 
 }
