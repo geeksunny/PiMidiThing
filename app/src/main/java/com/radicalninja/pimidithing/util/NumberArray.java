@@ -3,7 +3,6 @@ package com.radicalninja.pimidithing.util;
 import android.support.annotation.NonNull;
 import android.util.SparseBooleanArray;
 
-import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.PrimitiveIterator;
 import java.util.function.IntConsumer;
@@ -14,6 +13,16 @@ public class NumberArray implements Iterable<Integer> {
 
     public void add(final int number) {
         array.put(number, true);
+    }
+
+    public int[] getAll() {
+        final int[] results = new int[size()];
+        final NumberArrayIterator i = iterator();
+        int num = 0;
+        while (i.hasNext()) {
+            results[num++] = i.nextInt();
+        }
+        return results;
     }
 
     public boolean has(final int number) {
@@ -36,7 +45,7 @@ public class NumberArray implements Iterable<Integer> {
 
     @NonNull
     @Override
-    public Iterator<Integer> iterator() {
+    public NumberArrayIterator iterator() {
         return new NumberArrayIterator();
     }
 
@@ -45,7 +54,7 @@ public class NumberArray implements Iterable<Integer> {
         private final int last;
         private int cursor = 0;
 
-        public NumberArrayIterator() {
+        NumberArrayIterator() {
             this.last = NumberArray.this.size() - 1;
         }
 
