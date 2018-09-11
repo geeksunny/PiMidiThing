@@ -52,7 +52,9 @@ public class JsonUtils {
      *      * if `json`.`key` is not a boolean value.
      */
     public static boolean getBoolean(final JsonObject json,
-                                     final String key, final boolean defaultValue) {
+                                     final String key,
+                                     final boolean defaultValue) {
+
         boolean value = defaultValue;
         if (null != json && !TextUtils.isEmpty(key) && json.has(key)) {
             final JsonElement targetJson = json.get(key);
@@ -66,8 +68,68 @@ public class JsonUtils {
         return value;
     }
 
-    public static <T> List<T> getAsList(
-            final JsonElement json, final Class<T> tClass, final JsonDeserializationContext context) {
+    /**
+     * Retrieve a String value from a JsonObject. If a valid String value does not exist,
+     * null will be returned.
+     *
+     * Equivalent to getString(json, key, null);
+     * @param json the parent JsonObject of the targeted String value.
+     * @param key the key at which the String JSON value is stored.
+     * @return the String value of the JSON key. Returns false as a default value in the cases of...
+     *      * if `json` is null.
+     *      * if `key` is null or empty.
+     *      * if `json`.`key` does not exist.
+     *      * if `json`.`key` is not a String value.
+     */
+    public static String getString(final JsonObject json, final String key) {
+        String value = null;
+        if (null != json && !TextUtils.isEmpty(key) && json.has(key)) {
+            final JsonElement targetJson = json.get(key);
+            if (targetJson.isJsonPrimitive()) {
+                final JsonPrimitive targetJsonPrimitive = targetJson.getAsJsonPrimitive();
+                if (targetJsonPrimitive.isString()) {
+                    value = targetJsonPrimitive.getAsString();
+                }
+            }
+        }
+        return value;
+    }
+
+    /**
+     * Retrieve a String value from a JsonObject. If a valid String value does not exist,
+     * null will be returned.
+     *
+     * Equivalent to getString(json, key, null);
+     * @param json the parent JsonObject of the targeted String value.
+     * @param key the key at which the String JSON value is stored.
+     * @param defaultValue the value to be returned if a value cannot be located.
+     * @return the String value of the JSON key. Returns false as a default value in the cases of...
+     *      * if `json` is null.
+     *      * if `key` is null or empty.
+     *      * if `json`.`key` does not exist.
+     *      * if `json`.`key` is not a String value.
+     */
+    public static String getString(final JsonObject json,
+                                   final String key,
+                                   final String defaultValue) {
+
+        String value = defaultValue;
+        if (null != json && !TextUtils.isEmpty(key) && json.has(key)) {
+            final JsonElement targetJson = json.get(key);
+            if (targetJson.isJsonPrimitive()) {
+                final JsonPrimitive targetJsonPrimitive = targetJson.getAsJsonPrimitive();
+                if (targetJsonPrimitive.isString()) {
+                    value = targetJsonPrimitive.getAsString();
+                }
+            }
+        }
+        return value;
+    }
+
+    public static <T> List<T> getAsList(final JsonElement json,
+                                        final Class<T> tClass,
+                                        final JsonDeserializationContext context) {
+
         final Class listClass = new TypeToken<List<T>>(){}.getRawType();
         return context.deserialize(json, listClass);
     }

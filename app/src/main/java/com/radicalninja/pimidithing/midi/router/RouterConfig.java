@@ -193,7 +193,16 @@ public class RouterConfig {
     }
 
     public static class Sysex {
-        // todo
+        private String path;
+        private String output;
+
+        public String getPath() {
+            return path;
+        }
+
+        public String getOutput() {
+            return output;
+        }
     }
 
     public static class Options {
@@ -231,6 +240,27 @@ public class RouterConfig {
                 }
             }
             return results;
+        }
+
+        public List<Sysex> parseSysexJson(final JsonElement sysexJson) {
+            final List<Sysex> result = new ArrayList<>();
+            if (sysexJson.isJsonArray()) {
+                for (final JsonElement sysexItemJson : sysexJson.getAsJsonArray()) {
+                    if (sysexItemJson.isJsonObject()) {
+                        final JsonObject sysexItemObject = sysexItemJson.getAsJsonObject();
+                        final String path = JsonUtils.getString(sysexItemObject, JSON_KEY_PATH);
+                        // TODO: Should this be changed to a device record lookup by output nickname?
+                        final String output = JsonUtils.getString(sysexItemObject, JSON_KEY_OUTPUT);
+                        if (null != path && null != output) {
+                            final Sysex sysex = new Sysex();
+                            sysex.path = path;
+                            sysex.output = output;
+                            result.add(sysex);
+                        }
+                    }
+                }
+            }
+            return result;
         }
 
         @Override
@@ -271,7 +301,8 @@ public class RouterConfig {
             }
             // Parse Sysex
             if (_json.has(JSON_KEY_SYSEX)) {
-                // todo
+                final List<Sysex> parsedSysex = parseSysexJson(_json.get(JSON_KEY_SYSEX));
+                config.sysex.addAll(parsedSysex);
             }
             // Parse options
             if (_json.has(JSON_KEY_OPTIONS)) {
