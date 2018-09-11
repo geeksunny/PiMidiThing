@@ -173,6 +173,15 @@ public class MidiMessage {
         parseBytes();
     }
 
+    public MidiMessage(MidiMessage other) {
+        this.bytes = other.bytes;
+        this.offset = other.offset;
+        this.count = other.count;
+        this.timestamp = other.timestamp;
+        this.channel = other.channel;
+        this.type = other.type;
+    }
+
     protected PropertyHandler createBasicPropertyHandler(final int byteIndex) {
         return new PropertyHandler() {
             @Override
@@ -346,13 +355,15 @@ public class MidiMessage {
         return properties.get(propertyName).get();
     }
 
-    public boolean setProperty(final String propertyName, final int value) {
-        // TODO: Should get/set on this.bytes be synchronized?
+    public boolean hasProperty(final String propertyName) {
+        return properties.containsKey(propertyName);
+    }
 
-        // TODO: return TRUE if the property value was changed.
+    public boolean setProperty(final String propertyName, final int value) throws PropertyNotDefinedException {
+        // TODO: Should get/set on this.bytes be synchronized?
         final PropertyHandler handler = properties.get(propertyName);
         if (null == handler) {
-            // TODO: Throw exception if name does not exist in this.properties
+            throw new PropertyNotDefinedException(propertyName);
         }
         if (handler.get() == value) {
             return false;
