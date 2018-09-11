@@ -1,5 +1,7 @@
 package com.radicalninja.pimidithing.midi.router.filter;
 
+import android.util.Log;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -25,36 +27,29 @@ public class MessageTypeFilter extends BaseFilter {
     public void onSettings(JsonObject settings) {
         if (settings.has(KEY_WHITELIST)) {
             final JsonArray json = settings.getAsJsonArray(KEY_WHITELIST);
-            for (final JsonElement item : json) {
-                try {
-                    final JsonPrimitive _item = item.getAsJsonPrimitive();
-                    if (_item.isNumber()) {
-                        whitelist.add(_item.getAsInt());
-                    } else if (_item.isString()) {
-                        final String typeString = _item.getAsString();
-                        // TODO: Look up numerical value of message type string
-                        // TODO: Add number to whitelist.
-                    }
-                } catch (ClassCastException | IllegalStateException e) {
-                    // TODO: Handle error
-                }
-            }
+            populateAccessList(whitelist, json);
         }
         if (settings.has(KEY_BLACKLIST)) {
             final JsonArray json = settings.getAsJsonArray(KEY_BLACKLIST);
-            for (final JsonElement item : json) {
-                try {
-                    final JsonPrimitive _item = item.getAsJsonPrimitive();
-                    if (_item.isNumber()) {
-                        blacklist.add(_item.getAsInt());
-                    } else if (_item.isString()) {
-                        final String typeString = _item.getAsString();
-                        // TODO: Look up numerical value of message type string
-                        // TODO: Add number to blacklist.
+            populateAccessList(blacklist, json);
+        }
+    }
+
+    protected void populateAccessList(final NumberArray accessList, final JsonArray jsonArray) {
+        for (final JsonElement item : jsonArray) {
+            try {
+                final JsonPrimitive _item = item.getAsJsonPrimitive();
+                if (_item.isNumber()) {
+                    accessList.add(_item.getAsInt());
+                } else if (_item.isString()) {
+                    final String typeString = _item.getAsString();
+                    final MidiMessage.MessageType type = MidiMessage.MessageType.fromString(typeString);
+                    if (null != type) {
+                        accessList.add(type.value);
                     }
-                } catch (ClassCastException | IllegalStateException e) {
-                    // TODO: Handle error
                 }
+            } catch (ClassCastException | IllegalStateException e) {
+                Log.e(TAG, "Encountered an error populating the access list.", e);
             }
         }
     }
@@ -82,8 +77,16 @@ public class MessageTypeFilter extends BaseFilter {
 
     @Override
     Result onProcess(MidiMessage message) {
-        // TODO!!!
-        return null;
+        if (!whitelist.isEmpty()) {
+            if (whitelist.has(message.getType().value)) {
+                return Result.failed();
+            }
+        } else if (!blacklist.isEmpty()) {
+            if (blacklist.has(message.getType().value)) {
+                return Result.failed();
+            }
+        }
+        return new Result(message);
     }
 
 }

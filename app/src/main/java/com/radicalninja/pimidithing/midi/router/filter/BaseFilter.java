@@ -85,6 +85,7 @@ public abstract class BaseFilter {
         public int messageCount() {
             return (null != messages) ? messages.length : 0;
         }
+
     }
 
 }

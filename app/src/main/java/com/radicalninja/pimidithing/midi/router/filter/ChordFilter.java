@@ -85,7 +85,7 @@ public class ChordFilter extends BaseFilter {
         final int note = message.getProperty(MidiMessage.PROPERTY_NAME_NOTE);
         for (int i = 0; i < offsets.length; i++) {
             final int offset = offsets[i];
-            final int _note = note += offset;
+            final int _note = note + offset;
             if (!MathUtils.withinRange(_note, NOTE_MIN, NOTE_MAX)) {
                 continue;
             }
