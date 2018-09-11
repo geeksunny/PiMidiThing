@@ -10,7 +10,7 @@ public class JsonUtils {
 
     public static <T> List<T> getAsList(
             final JsonElement json, final Class<T> tClass, final JsonDeserializationContext context) {
-        final Class listClass = new TypeToken<List<T>>(){}.getClass();
+        final Class listClass = new TypeToken<List<T>>(){}.getRawType();
         return context.deserialize(json, listClass);
     }
 

@@ -1,3 +1,3 @@
 include ':app', ':SenseHatDriverLibrary', ':SenseHatDriverDemo'
 project(':SenseHatDriverLibrary').projectDir = new File('SenseHatDriverForAndroidThings/SenseHatDriverLibrary')
-project(':SenseHatDriverDemo').projectDir = new File('SenseHatDriverForAndroidThings/SenseHatDriverDemo')
+//project(':SenseHatDriverDemo').projectDir = new File('SenseHatDriverForAndroidThings/SenseHatDriverDemo')

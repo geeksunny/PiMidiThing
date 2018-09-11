@@ -25,12 +25,16 @@ public class NumberArray implements Iterable<Integer> {
         return results;
     }
 
+    public int get(final int index) {
+        return array.keyAt(index);
+    }
+
     public boolean has(final int number) {
         return array.get(number);
     }
 
-    public int get(final int index) {
-        return array.keyAt(index);
+    public boolean isEmpty() {
+        return size() == 0;
     }
 
     public void populate(final int[] numbers) {
