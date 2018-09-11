@@ -197,7 +197,21 @@ public class RouterConfig {
     }
 
     public static class Options {
-        // todo
+        private boolean hotplug;
+        private boolean syncConfigToUsb;
+        private boolean verbose;
+
+        public boolean isHotplug() {
+            return hotplug;
+        }
+
+        public boolean isSyncConfigToUsb() {
+            return syncConfigToUsb;
+        }
+
+        public boolean isVerbose() {
+            return verbose;
+        }
     }
 
     public static class Adapter
@@ -261,7 +275,9 @@ public class RouterConfig {
             }
             // Parse options
             if (_json.has(JSON_KEY_OPTIONS)) {
-                // todo
+                config.options.hotplug = JsonUtils.getBoolean(_json, JSON_KEY_OPTIONS);
+                config.options.syncConfigToUsb = JsonUtils.getBoolean(_json, JSON_KEY_SYNC_TO_USB);
+                config.options.verbose = JsonUtils.getBoolean(_json, JSON_KEY_VERBOSE);
             }
             return config;
         }

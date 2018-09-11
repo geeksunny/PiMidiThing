@@ -52,6 +52,15 @@ class RouterMapping {
     }
 
     /* package */
+    <F extends BaseFilter> void addFilters(final F[] filters) {
+        for (final F filter : filters) {
+            if (!this.filters.contains(filter)) {
+                this.filters.add(filter);
+            }
+        }
+    }
+
+    /* package */
     Result process(final MidiMessage message) {
         final Result result = new Result();
         for (final BaseFilter filter : filters) {

@@ -9,6 +9,12 @@ import com.radicalninja.pimidithing.ParkableWorkerThread;
 import com.radicalninja.pimidithing.midi.MidiCore;
 import com.radicalninja.pimidithing.midi.MidiInputController;
 import com.radicalninja.pimidithing.midi.MidiOutputController;
+import com.radicalninja.pimidithing.midi.router.filter.BaseFilter;
+import com.radicalninja.pimidithing.midi.router.filter.ChannelFilter;
+import com.radicalninja.pimidithing.midi.router.filter.ChordFilter;
+import com.radicalninja.pimidithing.midi.router.filter.MessageTypeFilter;
+import com.radicalninja.pimidithing.midi.router.filter.TransposeFilter;
+import com.radicalninja.pimidithing.midi.router.filter.VelocityFilter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +24,12 @@ import java.util.Map;
 /* package */class Configurator {
 
     private static final String TAG = Configurator.class.getCanonicalName();
+
+    private static final String FILTER_CHANNEL = "channels";
+    private static final String FILTER_CHORD = "chord";
+    private static final String FILTER_MESSAGE = "messageType";
+    private static final String FILTER_TRANSPOSE = "transpose";
+    private static final String FILTER_VELOCITY = "velocity";
 
     private final MidiCore midiCore = App.getInstance().getMidiCore();
     private final MidiRouter midiRouter;
@@ -40,12 +52,41 @@ import java.util.Map;
             return result;
         }
 
+        BaseFilter[] collectFilters(final Map<String, JsonObject> filterConfigs) {
+            final BaseFilter[] result = new BaseFilter[filterConfigs.size()];
+            int i = 0;
+            for (final Map.Entry<String, JsonObject> filterConfig : filterConfigs.entrySet()) {
+                final BaseFilter filter;
+                switch (filterConfig.getKey()) {
+                    case FILTER_CHANNEL:
+                        filter = new ChannelFilter(filterConfig.getValue());
+                        break;
+                    case FILTER_CHORD:
+                        filter = new ChordFilter(filterConfig.getValue());
+                        break;
+                    case FILTER_MESSAGE:
+                        filter = new MessageTypeFilter(filterConfig.getValue());
+                        break;
+                    case FILTER_TRANSPOSE:
+                        filter = new TransposeFilter(filterConfig.getValue());
+                        break;
+                    case FILTER_VELOCITY:
+                        filter = new VelocityFilter(filterConfig.getValue());
+                        break;
+                    default:
+                        continue;
+                }
+                result[i++] = filter;
+            }
+            return result;
+        }
+
         @Override
-        public void run(ParkableWorkerThread.ParkingValet parkingValet) {
+        public void run(ParkableWorkerThread.ParkingValet parkingValet) throws NullPointerException {
             final RouterConfig config = getData();
             if (null == config) {
-                // TODO: ENDED EARLY!!! Handle this situation.
-                return;
+                throw new NullPointerException(
+                        "The RouterConfig object provided was null. Configurator cannot run.");
             }
             try {
                 final Handler callbackHandler = new Handler(getSubtaskLooper());
@@ -63,20 +104,22 @@ import java.util.Map;
                     final List<MidiOutputController> outputControllers =
                             openOutputs(outputRecords, parkingValet, getRetrievingValet(), callbackHandler);
                     // - Filters
-                    // TODO!!
-                    //final Map<String, JsonObject> filterConfigs = mappingConfig.getFilters();
+                    final Map<String, JsonObject> filterConfigs = mappingConfig.getFilters();
+                    final BaseFilter[] filters = collectFilters(filterConfigs);
                     // - Mapping
                     final RouterMapping mapping =
                             new RouterMapping(mappingName, inputControllers, outputControllers);
+                    mapping.addFilters(filters);
                     midiRouter.addMapping(mapping);
                 }
+                // Clock - TODO: Revisit when digital and analog clocks are implemented.
+                // Sysex -TODO: Revisit when sysex is fully implemented.
+                // Options -TODO: Revisit when options are implemented.
+//                final RouterConfig.Options options = config.getOptions();
+                // TODO: set setting for options.hotplug, options.syncConfigToUsb, options.verbose
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-            // Clock
-            // Sysex
-            // Options
         }
     };
 
