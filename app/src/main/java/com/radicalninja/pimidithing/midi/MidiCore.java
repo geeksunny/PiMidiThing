@@ -10,6 +10,8 @@ import android.media.midi.MidiManager;
 import android.media.midi.MidiOutputPort;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -202,20 +204,36 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     private boolean started = false;
     private MidiRouter router;
 
-    public MidiCore(final Context context) {
+    public MidiCore(@NonNull final Context context,
+                    @Nullable final MidiRouter.OnRouterReadyListener listener) {
+
+        this(context, listener, null);
+    }
+
+    public MidiCore(@NonNull final Context context,
+                    @Nullable final MidiRouter.OnRouterReadyListener listener,
+                    @Nullable final Handler callbackHandler) {
+
         if (!context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_MIDI)) {
             throw new IllegalStateException("MIDI feature is missing from this device!");
         }
         manager = (MidiManager) context.getSystemService(Context.MIDI_SERVICE);
-        init();
+        init(listener, callbackHandler);
     }
 
-    protected void init() {
+    protected void init(@Nullable final MidiRouter.OnRouterReadyListener listener,
+                        @Nullable final Handler callbackHandler) {
+
+        // TODO: Check if config file exists in internal storage
+        // TODO: IF NOT - Open from raw / assets, save to internal storage.
+        // TODO: IF YES - RouterConfig.fromFile()
+
         if (!started) {
             // TODO: log warning / throw error?
             return;
         }
         final App app = App.getInstance();
+        // TODO:Check if config exists in internal storage. IF YES, LOAD IT INSTEAD OF DEFAULT CONFIG
         final InputStream defaultConfig = app.getResources().openRawResource(R.raw.config);
         final RouterConfig config =
                 app.getGson().fromJson(new InputStreamReader(defaultConfig), RouterConfig.class);
@@ -226,10 +244,7 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
             index.add(device.getName(), device.getPort(), deviceEntry.getKey());
         }
         // Create the router
-        router = new MidiRouter(config);
-        // TODO: Check if config file exists in internal storage
-        // TODO: IF NOT - Open from raw / assets, save to internal storage.
-        // TODO: IF YES - RouterConfig.fromFile()
+        router = MidiRouter.create(config, listener, callbackHandler);
     }
 
     public PortRecord getPortRecord(final String nickname) {

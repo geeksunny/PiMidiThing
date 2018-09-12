@@ -1,6 +1,8 @@
 package com.radicalninja.pimidithing.midi.router;
 
 import android.os.Handler;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.google.gson.JsonObject;
@@ -21,7 +23,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/* package */class Configurator {
+/* package */
+class Configurator {
+
+    /* package */
+    interface OnConfigFinishedListener {
+        void onFinish();
+    }
 
     private static final String TAG = Configurator.class.getCanonicalName();
 
@@ -33,12 +41,16 @@ import java.util.Map;
 
     private final MidiCore midiCore = App.getInstance().getMidiCore();
     private final MidiRouter midiRouter;
+    private final OnConfigFinishedListener onConfigFinishedListener;
     private final ParkableWorkerThread workerThread;
 
-    public Configurator(MidiRouter midiRouter) {
+
+    public Configurator(@NonNull final MidiRouter midiRouter,
+                        @Nullable final OnConfigFinishedListener listener) {
+
         this.midiRouter = midiRouter;
+        this.onConfigFinishedListener = listener;
         this.workerThread = new ParkableWorkerThread(configRunner);
-        // TODO: Begin configuration process on `thread` and use a CountDownLatch or Condition to `await` until callbacks are called.
     }
 
     private final ParkableWorkerThread.ParkableRunnable<RouterConfig> configRunner =
@@ -117,20 +129,26 @@ import java.util.Map;
                 // Options -TODO: Revisit when options are implemented.
 //                final RouterConfig.Options options = config.getOptions();
                 // TODO: set setting for options.hotplug, options.syncConfigToUsb, options.verbose
+                // Finished! Exec callback if set.
+                if (null != onConfigFinishedListener) {
+                    onConfigFinishedListener.onFinish();
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
     };
 
-    /* package */void start(final RouterConfig config) {
+    /* package */
+    void start(final RouterConfig config) {
         // Set data to the thread worker.
         configRunner.setData(config);
         // Start the thread.
         workerThread.start();
     }
 
-    /* package */void createMapping() {
+    /* package */
+    void createMapping() {
         // TODO: Construct mapping here, use openInputs()/openOutputs below
     }
 

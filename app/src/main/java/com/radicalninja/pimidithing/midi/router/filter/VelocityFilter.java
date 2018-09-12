@@ -139,6 +139,7 @@ public class VelocityFilter extends BaseFilter {
                 break;
             default:
                 mode = Mode.CLIP;
+                // fall through
             case CLIP:
                 listener = new VelocityListener() {
                     @Override

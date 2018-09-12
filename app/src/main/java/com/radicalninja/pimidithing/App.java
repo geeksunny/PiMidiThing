@@ -4,7 +4,6 @@ import android.app.Application;
 import android.content.Context;
 import android.graphics.Color;
 import android.hardware.SensorManager;
-import android.media.midi.MidiDeviceInfo;
 import android.util.Log;
 
 import com.eon.androidthings.sensehatdriverlibrary.SenseHat;
@@ -12,12 +11,13 @@ import com.eon.androidthings.sensehatdriverlibrary.devices.LedMatrix;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.radicalninja.pimidithing.midi.MidiCore;
+import com.radicalninja.pimidithing.midi.router.MidiRouter;
 import com.radicalninja.pimidithing.midi.router.RouterConfig;
 import com.radicalninja.pimidithing.usb.MassStorageController;
 
 import java.io.IOException;
 
-public class App extends Application {
+public class App extends Application implements MidiRouter.OnRouterReadyListener {
 
     private static final String TAG = App.class.getCanonicalName();
 
@@ -61,7 +61,13 @@ public class App extends Application {
     }
 
     private void initMidiCore() {
-        midiCore = new MidiCore(this);
+        midiCore = new MidiCore(this, this);
+    }
+
+    @Override
+    public void onRouterReady() {
+        // TODO: Alert user that router is ready!
+        Log.i(TAG, "MidiRouter is configured and ready!");
     }
 
     private void initSenseHat() {
@@ -89,4 +95,5 @@ public class App extends Application {
     public MassStorageController getMassStorageController() {
         return massStorageController;
     }
+
 }
