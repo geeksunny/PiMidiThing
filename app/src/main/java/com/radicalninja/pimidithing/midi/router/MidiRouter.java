@@ -14,20 +14,7 @@ public class MidiRouter {
 
     public interface OnRouterReadyListener {
         void onRouterReady();
-    }
-
-    public static MidiRouter create(@NonNull final RouterConfig config,
-                                  @Nullable final OnRouterReadyListener listener,
-                                  @Nullable final Handler callbackHandler) {
-
-        final MidiRouter router = new MidiRouter(config);
-        if (null != listener) {
-            final Handler handler = (null == callbackHandler) ? new Handler() : callbackHandler;
-            router.init(listener, handler);
-        } else {
-            router.init();
-        }
-        return router;
+        void onRouterError(final String message, @Nullable final Throwable error);
     }
 
     private final List<RouterMapping> mappings = new ArrayList<>();
@@ -35,7 +22,7 @@ public class MidiRouter {
     private boolean started, paused;
     private RouterConfig config;
 
-    protected MidiRouter(final RouterConfig config) {
+    public MidiRouter(final RouterConfig config) {
         setConfig(config);
     }
 
@@ -44,16 +31,20 @@ public class MidiRouter {
         // TODO: SETUP MAPPINGS AND OTHER FEATURES HERE
     }
 
-    protected void init() {
+    public void init() {
+        if (started) {
+            // Router is already started!
+            return;
+        }
         final Configurator configurator = new Configurator(this, null);
         configurator.start(config);
     }
 
-    protected void init(@NonNull final OnRouterReadyListener listener,
-                        @NonNull final Handler callbackHandler) {
+    public void init(@NonNull final OnRouterReadyListener listener,
+                     @NonNull final Handler callbackHandler) {
 
         if (started) {
-            // Router is already started!
+            listener.onRouterError("Router already started!", null);
             return;
         }
         final Configurator.OnConfigFinishedListener onConfigFinished =

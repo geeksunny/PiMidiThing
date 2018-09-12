@@ -4,6 +4,7 @@ import android.app.Application;
 import android.content.Context;
 import android.graphics.Color;
 import android.hardware.SensorManager;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.eon.androidthings.sensehatdriverlibrary.SenseHat;
@@ -16,6 +17,8 @@ import com.radicalninja.pimidithing.midi.router.RouterConfig;
 import com.radicalninja.pimidithing.usb.MassStorageController;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 public class App extends Application implements MidiRouter.OnRouterReadyListener {
 
@@ -61,13 +64,24 @@ public class App extends Application implements MidiRouter.OnRouterReadyListener
     }
 
     private void initMidiCore() {
-        midiCore = new MidiCore(this, this);
+        Log.d(TAG, "Beginning MidiCore init");
+        final InputStream defaultConfig = getResources().openRawResource(R.raw.config);
+        final RouterConfig config =
+                gson.fromJson(new InputStreamReader(defaultConfig), RouterConfig.class);
+
+        midiCore = new MidiCore(this, config);
+        midiCore.initRouter(this);
     }
 
     @Override
     public void onRouterReady() {
         // TODO: Alert user that router is ready!
         Log.i(TAG, "MidiRouter is configured and ready!");
+    }
+
+    @Override
+    public void onRouterError(String message, @Nullable Throwable error) {
+        Log.e(TAG, message, error);
     }
 
     private void initSenseHat() {

@@ -16,14 +16,10 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.github.mjdev.libaums.UsbMassStorageDevice;
-import com.radicalninja.pimidithing.App;
-import com.radicalninja.pimidithing.R;
 import com.radicalninja.pimidithing.midi.router.MidiRouter;
 import com.radicalninja.pimidithing.midi.router.RouterConfig;
 import com.radicalninja.pimidithing.usb.MassStorageController;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -204,39 +200,21 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     private boolean started = false;
     private MidiRouter router;
 
-    public MidiCore(@NonNull final Context context,
-                    @Nullable final MidiRouter.OnRouterReadyListener listener) {
-
-        this(context, listener, null);
-    }
-
-    public MidiCore(@NonNull final Context context,
-                    @Nullable final MidiRouter.OnRouterReadyListener listener,
-                    @Nullable final Handler callbackHandler) {
+    public MidiCore(@NonNull final Context context, @NonNull final RouterConfig config) {
 
         if (!context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_MIDI)) {
             throw new IllegalStateException("MIDI feature is missing from this device!");
         }
         manager = (MidiManager) context.getSystemService(Context.MIDI_SERVICE);
-        init(listener, callbackHandler);
+        init(config);
     }
 
-    protected void init(@Nullable final MidiRouter.OnRouterReadyListener listener,
-                        @Nullable final Handler callbackHandler) {
+    protected void init(@NonNull final RouterConfig config) {
 
-        // TODO: Check if config file exists in internal storage
-        // TODO: IF NOT - Open from raw / assets, save to internal storage.
-        // TODO: IF YES - RouterConfig.fromFile()
-
-        if (!started) {
+        if (started) {
             // TODO: log warning / throw error?
             return;
         }
-        final App app = App.getInstance();
-        // TODO:Check if config exists in internal storage. IF YES, LOAD IT INSTEAD OF DEFAULT CONFIG
-        final InputStream defaultConfig = app.getResources().openRawResource(R.raw.config);
-        final RouterConfig config =
-                app.getGson().fromJson(new InputStreamReader(defaultConfig), RouterConfig.class);
         // Populate PortRecords
         final Map<String, RouterConfig.Device> devices = config.getDevices();
         for (final Map.Entry<String, RouterConfig.Device> deviceEntry : devices.entrySet()) {
@@ -244,7 +222,22 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
             index.add(device.getName(), device.getPort(), deviceEntry.getKey());
         }
         // Create the router
-        router = MidiRouter.create(config, listener, callbackHandler);
+        router = new MidiRouter(config);
+    }
+
+    public void initRouter(@Nullable final MidiRouter.OnRouterReadyListener listener) {
+        initRouter(listener, null);
+    }
+
+    public void initRouter(@Nullable final MidiRouter.OnRouterReadyListener listener,
+                           @Nullable final Handler callbackHandler) {
+
+        if (null != listener) {
+            final Handler handler = (null == callbackHandler) ? new Handler() : callbackHandler;
+            router.init(listener, handler);
+        } else {
+            router.init();
+        }
     }
 
     public PortRecord getPortRecord(final String nickname) {

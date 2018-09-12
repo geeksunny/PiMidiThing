@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class JsonUtils {
@@ -130,8 +131,12 @@ public class JsonUtils {
                                         final Class<T> tClass,
                                         final JsonDeserializationContext context) {
 
-        final Class listClass = new TypeToken<List<T>>(){}.getRawType();
-        return context.deserialize(json, listClass);
+        if (null == json || !json.isJsonArray()) {
+            return new ArrayList<>();
+        } else {
+            final Class listClass = new TypeToken<List<T>>(){}.getRawType();
+            return context.deserialize(json, listClass);
+        }
     }
 
 }
