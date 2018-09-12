@@ -271,10 +271,11 @@ public class RouterConfig {
             final RouterConfig config = new RouterConfig();
             final JsonObject _json = json.getAsJsonObject();
             // Parse devices
-            if (_json.has(JSON_KEY_DEVICES)) {
-                final JsonObject devices = _json.get(JSON_KEY_DEVICES).getAsJsonObject();
+            final JsonObject devices = JsonUtils.getObject(_json, JSON_KEY_DEVICES);
+            if (null != devices) {
                 for (final Map.Entry<String, JsonElement> element : devices.entrySet()) {
                     final Device device = new Device();
+                    // TODO: null/type check here
                     final JsonObject _deviceConfig = element.getValue().getAsJsonObject();
                     device.name = _deviceConfig.get(JSON_KEY_NAME).getAsString();
                     device.port = _deviceConfig.get(JSON_KEY_PORT).getAsInt();
@@ -284,13 +285,13 @@ public class RouterConfig {
             // Parse ignore list
             config.ignore.addAll(JsonUtils.getAsList(_json.get(JSON_KEY_IGNORE), String.class, context));
             // Parse mappings
-            if (_json.has(JSON_KEY_MAPPINGS)) {
-                final JsonObject mappings = _json.get(JSON_KEY_MAPPINGS).getAsJsonObject();
+            final JsonObject mappings = JsonUtils.getObject(_json, JSON_KEY_MAPPINGS);
+            if (null != mappings) {
                 for (final Map.Entry<String, JsonElement> element : mappings.entrySet()) {
                     final Mapping mapping = new Mapping();
                     mapping.inputs = fetchDevices(_json.get(JSON_KEY_INPUTS), config.devices, context);
                     mapping.outputs = fetchDevices(_json.get(JSON_KEY_OUTPUTS), config.devices, context);
-                    // todo: filters
+                    mapping.filters = JsonUtils.getAllObjects(_json.get(JSON_KEY_FILTERS));
                     // todo: listen
                     config.mappings.put(element.getKey(), mapping);
                 }
