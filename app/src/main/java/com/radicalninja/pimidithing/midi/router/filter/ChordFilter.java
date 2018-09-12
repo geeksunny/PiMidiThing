@@ -3,6 +3,7 @@ package com.radicalninja.pimidithing.midi.router.filter;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.radicalninja.pimidithing.midi.MidiMessage;
+import com.radicalninja.pimidithing.midi.router.RouterResult;
 import com.radicalninja.pimidithing.util.MathUtils;
 
 import java.util.HashMap;
@@ -77,9 +78,9 @@ public class ChordFilter extends BaseFilter {
     }
 
     @Override
-    Result onProcess(MidiMessage message) {
+    RouterResult onProcess(MidiMessage message) {
         if (disabled || !message.hasProperty(MidiMessage.PROPERTY_NAME_NOTE)) {
-            return new Result(message);
+            return new RouterResult(message);
         }
         final MidiMessage[] result = new MidiMessage[offsets.length];
         final int note = message.getProperty(MidiMessage.PROPERTY_NAME_NOTE);
@@ -93,7 +94,7 @@ public class ChordFilter extends BaseFilter {
             _message.setProperty(MidiMessage.PROPERTY_NAME_NOTE, _note);
             result[i] = _message;
         }
-        return new Result(result);
+        return new RouterResult(result);
     }
 
     void setChord(final String chordName) {

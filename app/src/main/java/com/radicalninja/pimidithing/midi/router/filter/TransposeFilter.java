@@ -5,6 +5,7 @@ import android.support.annotation.IntRange;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.radicalninja.pimidithing.midi.MidiMessage;
+import com.radicalninja.pimidithing.midi.router.RouterResult;
 import com.radicalninja.pimidithing.util.MathUtils;
 
 public class TransposeFilter extends BaseFilter {
@@ -37,7 +38,7 @@ public class TransposeFilter extends BaseFilter {
     }
 
     @Override
-    Result onProcess(MidiMessage message) {
+    RouterResult onProcess(MidiMessage message) {
         if (message.hasProperty(MidiMessage.PROPERTY_NAME_NOTE)) {
             final int note = message.getProperty(MidiMessage.PROPERTY_NAME_NOTE);
             final int scaled = note + (step * NOTE_STEP);
@@ -46,7 +47,7 @@ public class TransposeFilter extends BaseFilter {
                 message.setProperty(MidiMessage.PROPERTY_NAME_NOTE, _note);
             }
         }
-        return new Result(message);
+        return new RouterResult(message);
     }
 
     void setStep(@IntRange(from=-10, to=10) final int step) {

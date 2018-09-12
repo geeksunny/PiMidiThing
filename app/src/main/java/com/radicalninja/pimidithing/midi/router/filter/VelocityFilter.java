@@ -3,6 +3,7 @@ package com.radicalninja.pimidithing.midi.router.filter;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.radicalninja.pimidithing.midi.MidiMessage;
+import com.radicalninja.pimidithing.midi.router.RouterResult;
 import com.radicalninja.pimidithing.util.MathUtils;
 
 public class VelocityFilter extends BaseFilter {
@@ -82,17 +83,17 @@ public class VelocityFilter extends BaseFilter {
     }
 
     @Override
-    Result onProcess(final MidiMessage message) {
+    RouterResult onProcess(final MidiMessage message) {
         if (!message.hasProperty(MidiMessage.PROPERTY_NAME_VELOCITY)) {
-            return new Result(message);
+            return new RouterResult(message);
         }
         final int velocity = message.getProperty(MidiMessage.PROPERTY_NAME_VELOCITY);
         final int processed = listener.transformVelocity(velocity);
         if (processed == -1) {
-            return Result.failed();
+            return RouterResult.failed();
         }
         message.setProperty(MidiMessage.PROPERTY_NAME_VELOCITY, processed);
-        return new Result(message);
+        return new RouterResult(message);
     }
 
     public void setMin(int min) {

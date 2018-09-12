@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.radicalninja.pimidithing.midi.MidiMessage;
+import com.radicalninja.pimidithing.midi.router.RouterResult;
 import com.radicalninja.pimidithing.util.NumberArray;
 import com.radicalninja.pimidithing.util.NumberMap;
 
@@ -94,22 +95,22 @@ public class ChannelFilter extends BaseFilter {
     }
 
     @Override
-    Result onProcess(MidiMessage message) {
+    RouterResult onProcess(MidiMessage message) {
         final int channel = message.getChannel();
         if (!whitelist.isEmpty()) {
             if (!whitelist.has(channel)) {
-                return Result.failed();
+                return RouterResult.failed();
             }
         } else if (!blacklist.isEmpty()) {
             if (blacklist.has(channel)) {
-                return Result.failed();
+                return RouterResult.failed();
             }
         }
         final int mapping = map.get(channel, -1);
         if (mapping > 0) {
             message.setChannel(mapping);
         }
-        return new Result(message);
+        return new RouterResult(message);
     }
 
 }

@@ -4,6 +4,7 @@ import com.radicalninja.pimidithing.midi.MidiInputController;
 import com.radicalninja.pimidithing.midi.MidiMessage;
 import com.radicalninja.pimidithing.midi.MidiOutputController;
 import com.radicalninja.pimidithing.midi.router.filter.BaseFilter;
+import com.radicalninja.pimidithing.util.ArrayUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -61,12 +62,21 @@ class RouterMapping {
     }
 
     /* package */
-    Result process(final MidiMessage message) {
-        final Result result = new Result();
+    RouterResult process(final MidiMessage message) {
+        MidiMessage[] messages = new MidiMessage[]{message};
         for (final BaseFilter filter : filters) {
-            // TODO
+            final List<MidiMessage> next = new ArrayList<>(messages.length);
+            for (final MidiMessage msg : messages) {
+                final RouterResult processed = filter.process(msg);
+                if (processed.isConsumed() || processed.isFailed()) {
+                    return processed;
+                } else {
+                    ArrayUtils.addArrayToList(processed.getMessages(), next);
+                }
+            }
+            messages = next.toArray(new MidiMessage[next.size()]);
         }
-        return result;
+        return new RouterResult(messages);
     }
 
     /* package */
@@ -106,11 +116,6 @@ class RouterMapping {
         for (final MidiOutputController output : outputs) {
             output.send(message);
         }
-    }
-
-    /* package */
-    static class Result {
-        // TODO: Build class around requirements of process(msg)
     }
 
 }

@@ -7,6 +7,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.radicalninja.pimidithing.midi.MidiMessage;
+import com.radicalninja.pimidithing.midi.router.RouterResult;
 import com.radicalninja.pimidithing.util.NumberArray;
 
 public class MessageTypeFilter extends BaseFilter {
@@ -76,17 +77,17 @@ public class MessageTypeFilter extends BaseFilter {
     }
 
     @Override
-    Result onProcess(MidiMessage message) {
+    RouterResult onProcess(MidiMessage message) {
         if (!whitelist.isEmpty()) {
             if (whitelist.has(message.getType().value)) {
-                return Result.failed();
+                return RouterResult.failed();
             }
         } else if (!blacklist.isEmpty()) {
             if (blacklist.has(message.getType().value)) {
-                return Result.failed();
+                return RouterResult.failed();
             }
         }
-        return new Result(message);
+        return new RouterResult(message);
     }
 
 }
