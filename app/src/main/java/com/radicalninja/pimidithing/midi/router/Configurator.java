@@ -56,10 +56,16 @@ class Configurator {
     private final ParkableWorkerThread.ParkableRunnable<RouterConfig> configRunner =
             new ParkableWorkerThread.ParkableRunnable<RouterConfig>() {
 
-        List<MidiCore.PortRecord> collectRecords(final List<RouterConfig.Device> devices) {
-            final List<MidiCore.PortRecord> result = new ArrayList<>(devices.size());
-            for (final RouterConfig.Device device : devices) {
-                final MidiCore.PortRecord portRecord = midiCore.getPortRecord(device.getName());
+        List<MidiCore.PortRecord> collectRecords(final List<String> deviceNicknames) {
+            if (null == deviceNicknames) {
+                return new ArrayList<>();
+            }
+            final List<MidiCore.PortRecord> result = new ArrayList<>(deviceNicknames.size());
+            for (final String deviceNickname : deviceNicknames) {
+                final MidiCore.PortRecord portRecord = midiCore.getPortRecord(deviceNickname);
+                if (null != portRecord) {
+                    result.add(portRecord);
+                }
             }
             return result;
         }

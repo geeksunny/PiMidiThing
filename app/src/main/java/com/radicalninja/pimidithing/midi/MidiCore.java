@@ -212,7 +212,7 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     protected void init(@NonNull final RouterConfig config) {
 
         if (started) {
-            // TODO: log warning / throw error?
+            Log.d(TAG, "MidiCore was already started, skipping init call.");
             return;
         }
         // Populate PortRecords
@@ -232,6 +232,11 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     public void initRouter(@Nullable final MidiRouter.OnRouterReadyListener listener,
                            @Nullable final Handler callbackHandler) {
 
+        if (router.started()) {
+            if (null != listener) {
+                listener.onRouterError("MidiRouter is already started!", null);
+            }
+        }
         if (null != listener) {
             final Handler handler = (null == callbackHandler) ? new Handler() : callbackHandler;
             router.init(listener, handler);

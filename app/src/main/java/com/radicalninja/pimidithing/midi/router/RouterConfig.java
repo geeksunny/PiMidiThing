@@ -137,16 +137,16 @@ public class RouterConfig {
     }
 
     public static class Mapping {
-        private List<Device> inputs;
-        private List<Device> outputs;
+        private List<String> inputs;
+        private List<String> outputs;
         private Map<String, JsonObject> filters;
         private Listen listen;
 
-        public List<Device> getInputs() {
+        public List<String> getInputs() {
             return inputs;
         }
 
-        public List<Device> getOutputs() {
+        public List<String> getOutputs() {
             return outputs;
         }
 
@@ -288,10 +288,14 @@ public class RouterConfig {
             final JsonObject mappings = JsonUtils.getObject(_json, JSON_KEY_MAPPINGS);
             if (null != mappings) {
                 for (final Map.Entry<String, JsonElement> element : mappings.entrySet()) {
+                    if (null == element.getValue() || !element.getValue().isJsonObject()) {
+                        continue;
+                    }
+                    final JsonObject mappingJson = element.getValue().getAsJsonObject();
                     final Mapping mapping = new Mapping();
-                    mapping.inputs = fetchDevices(_json.get(JSON_KEY_INPUTS), config.devices, context);
-                    mapping.outputs = fetchDevices(_json.get(JSON_KEY_OUTPUTS), config.devices, context);
-                    mapping.filters = JsonUtils.getAllObjects(_json.get(JSON_KEY_FILTERS));
+                    mapping.inputs = JsonUtils.getAsList(mappingJson.get(JSON_KEY_INPUTS), String.class, context);
+                    mapping.outputs = JsonUtils.getAsList(mappingJson.get(JSON_KEY_OUTPUTS), String.class, context);
+                    mapping.filters = JsonUtils.getAllObjects(mappingJson.get(JSON_KEY_FILTERS));
                     // todo: listen
                     config.mappings.put(element.getKey(), mapping);
                 }

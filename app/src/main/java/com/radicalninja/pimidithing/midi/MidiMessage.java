@@ -19,33 +19,34 @@ public class MidiMessage {
 
     public enum MessageType {
 
-        NOTEOFF(Set.BASIC, 0x08),
-        NOTEON(Set.BASIC, 0x09),
-        POLY_AFTERTOUCH(Set.BASIC, 0x0A),
-        CC(Set.BASIC, 0x0B),
-        PROGRAM(Set.BASIC, 0x0C),
-        CHANNEL_AFTERTOUCH(Set.BASIC, 0x0D),
-        PITCH(Set.BASIC, 0x0E),
+        NOTEOFF(Set.BASIC, (byte) 0x08),
+        NOTEON(Set.BASIC, (byte) 0x09),
+        POLY_AFTERTOUCH(Set.BASIC, (byte) 0x0A),
+        CC(Set.BASIC, (byte) 0x0B),
+        PROGRAM(Set.BASIC, (byte) 0x0C),
+        CHANNEL_AFTERTOUCH(Set.BASIC, (byte) 0x0D),
+        PITCH(Set.BASIC, (byte) 0x0E),
 
-        SYSEX(Set.EXTENDED, 0xF0),
-        MTC(Set.EXTENDED, 0xF1),
-        POSITION(Set.EXTENDED, 0xF2),
-        SELECT(Set.EXTENDED, 0xF3),
-        TUNE(Set.EXTENDED, 0xF6),
-        SYSEX_END(Set.EXTENDED, 0xF7),
-        CLOCK(Set.EXTENDED, 0xF8),
-        START(Set.EXTENDED, 0xFA),
-        CONTINUE(Set.EXTENDED, 0xFB),
-        STOP(Set.EXTENDED, 0xFC),
-        RESET(Set.EXTENDED, 0xFF);
+        SYSEX(Set.EXTENDED, (byte) 0xF0),
+        MTC(Set.EXTENDED, (byte) 0xF1),
+        POSITION(Set.EXTENDED, (byte) 0xF2),
+        SELECT(Set.EXTENDED, (byte) 0xF3),
+        TUNE(Set.EXTENDED, (byte) 0xF6),
+        SYSEX_END(Set.EXTENDED, (byte) 0xF7),
+        CLOCK(Set.EXTENDED, (byte) 0xF8),
+        START(Set.EXTENDED, (byte) 0xFA),
+        CONTINUE(Set.EXTENDED, (byte) 0xFB),
+        STOP(Set.EXTENDED, (byte) 0xFC),
+        RESET(Set.EXTENDED, (byte) 0xFF);
 
         @Nullable
         public static MessageType fromValue(final byte value) {
-            // TODO: VERIFY THIS WORKS
-            final MessageType[] types = (value < (byte) 0xF0)
-                    ? MessageType.basicTypes : MessageType.extendedTypes;
+            final boolean isBasic = (value < (byte) 0xF0);
+            final byte typeByte = isBasic ? (byte) ((value >>> (byte) 4) & (byte) 0x0f) : value;
+//            Log.d("MessageType",String.format("value: %08x | typeByte: %08x | is basic: %s", value, typeByte, isBasic));
+            final MessageType[] types = isBasic ? MessageType.basicTypes : MessageType.extendedTypes;
             for (final MessageType type : types) {
-                if (type.value == value) {
+                if (type.value == typeByte) {
                     return type;
                 }
             }
@@ -74,9 +75,9 @@ public class MidiMessage {
         }
 
         public final Set set;
-        public final int value;
+        public final byte value;
 
-        MessageType(final Set set, final int value) {
+        MessageType(final Set set, final byte value) {
             this.set = set;
             this.value = value;
         }

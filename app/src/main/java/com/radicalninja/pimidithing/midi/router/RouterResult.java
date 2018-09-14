@@ -39,6 +39,10 @@ public class RouterResult {
         return failed;
     }
 
+    public boolean shouldBroadcast() {
+        return !(consumed || failed);
+    }
+
     public MidiMessage[] getMessages() {
         return messages;
     }

@@ -7,6 +7,7 @@ import android.support.annotation.Nullable;
 import com.radicalninja.pimidithing.midi.MidiInputController;
 import com.radicalninja.pimidithing.midi.MidiMessage;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +20,8 @@ public class MidiRouter {
 
     private final List<RouterMapping> mappings = new ArrayList<>();
 
-    private boolean started, paused;
+    private boolean started = false;
+    private boolean paused = false;
     private RouterConfig config;
 
     public MidiRouter(final RouterConfig config) {
@@ -36,7 +38,14 @@ public class MidiRouter {
             // Router is already started!
             return;
         }
-        final Configurator configurator = new Configurator(this, null);
+        final Configurator.OnConfigFinishedListener onConfigFinished =
+                new Configurator.OnConfigFinishedListener() {
+                    @Override
+                    public void onFinish() {
+                        started = true;
+                    }
+                };
+        final Configurator configurator = new Configurator(this, onConfigFinished);
         configurator.start(config);
     }
 
@@ -51,6 +60,7 @@ public class MidiRouter {
                 new Configurator.OnConfigFinishedListener() {
                     @Override
                     public void onFinish() {
+                        started = true;
                         final Runnable callback = new Runnable() {
                             @Override
                             public void run() {
@@ -70,23 +80,33 @@ public class MidiRouter {
             if (paused || !started) {
                 return false;
             }
-            final RouterMapping.Result result = mapping.process(message);
-            // TODO: IF result === true, return true
-            // TODO: IF processed != null - BROADCAST ALL MESSAGES RETURNED
-            return false;
+            final RouterResult result = mapping.process(message);
+            if (result.shouldBroadcast()) {
+                try {
+                    mapping.broadcast(result.getMessages());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            // TODO: Make sure the return value here is correct...
+            return result.isConsumed();
         }
     };
 
+    public boolean started() {
+        return started;
+    }
+
     void pause() {
-        // TODO: Pause
+        paused = true;
     }
 
     void unpause() {
-        // TODO: Unpause
+        paused = false;
     }
 
     void toggle() {
-        // TODO: Toggle paused value
+        paused = !paused;
     }
 
     void stop() {
@@ -97,6 +117,7 @@ public class MidiRouter {
     void addMapping(final RouterMapping mapping) {
         if (!mappings.contains(mapping)) {
             mappings.add(mapping);
+            mapping.activate(onMessage);
         }
     }
 

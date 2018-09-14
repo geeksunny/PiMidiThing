@@ -112,6 +112,15 @@ class RouterMapping {
     }
 
     /* package */
+    void broadcast(final MidiMessage[] messages) throws IOException {
+        for (final MidiMessage message : messages) {
+            for (final MidiOutputController output : outputs) {
+                output.send(message);
+            }
+        }
+    }
+
+    /* package */
     void broadcast(final MidiMessage message) throws IOException {
         for (final MidiOutputController output : outputs) {
             output.send(message);
