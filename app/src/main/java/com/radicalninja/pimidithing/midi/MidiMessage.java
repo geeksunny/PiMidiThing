@@ -163,12 +163,13 @@ public class MidiMessage {
     }
 
     public MidiMessage(final byte[] bytes, final int offset, final int count, final long timestamp) {
-        this.type = MessageType.fromValue(bytes[0]);
+
+        this.bytes = Arrays.copyOfRange(bytes, offset, (offset + count));
+        this.type = MessageType.fromValue(this.bytes[0]);
         if (null == this.type) {
             throw new NullPointerException("Invalid MessageType encountered.");
         }
-        this.bytes = Arrays.copyOf(bytes, bytes.length);
-        this.offset = offset;
+        this.offset = 0;
         this.count = count;
         this.timestamp = timestamp;
         parseBytes();

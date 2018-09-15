@@ -31,7 +31,7 @@
   "mappings": {
     "Master": {
       "inputs": [
-        "Beatstep", "Launckey"
+        "Beatstep", "Launchkey"
       ],
       "outputs": [
         "Tbox2", "Tbox1", "Circuit", "Monostation"
