@@ -1,14 +1,18 @@
 package com.radicalninja.pimidithing.midi;
 
+import android.media.midi.MidiDevice;
 import android.media.midi.MidiOutputPort;
 import android.media.midi.MidiReceiver;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MidiInputController extends MidiDeviceController {
+public class MidiInputController
+        extends MidiDeviceController<MidiInputController, MidiOutputPort> {
 
     public interface MessageListener {
         boolean onMessage(final MidiInputController input, final MidiMessage message);
@@ -17,13 +21,28 @@ public class MidiInputController extends MidiDeviceController {
     private static final String TAG = MidiInputController.class.getCanonicalName();
 
     private final MidiInputReceiver receiver = new MidiInputReceiver(this);
-    private final MidiOutputPort sourcePort;
 
-    public MidiInputController(final MidiOutputPort midiOutputPort,
-                               final MidiCore.PortRecord portRecord) {
+    private MidiOutputPort sourcePort;
+
+    public MidiInputController(final MidiCore.PortRecord portRecord) {
 
         super(portRecord);
-        this.sourcePort = midiOutputPort;
+    }
+
+    @Override
+    protected MidiOutputPort getSourcePort() {
+        return sourcePort;
+    }
+
+    @Nullable
+    @Override
+    protected MidiOutputPort openSourcePort(@NonNull MidiDevice midiDevice) {
+        return midiDevice.openOutputPort(getPortRecord().port);
+    }
+
+    @Override
+    protected void setSourcePort(@NonNull MidiOutputPort sourcePort) {
+        this.sourcePort = sourcePort;
         this.sourcePort.connect(receiver);
     }
 
@@ -63,6 +82,7 @@ public class MidiInputController extends MidiDeviceController {
 
         @Override
         public void onSend(byte[] data, int offset, int count, long timestamp) throws IOException {
+//            Log.d(TAG, String.format("offset: %d | count: %d", offset, count));
             final MidiMessage message = new MidiMessage(data, offset, count, timestamp);
             synchronized (this) {
                 for (final MessageListener listener : listeners) {

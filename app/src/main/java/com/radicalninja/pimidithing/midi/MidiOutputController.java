@@ -1,28 +1,46 @@
 package com.radicalninja.pimidithing.midi;
 
+import android.media.midi.MidiDevice;
 import android.media.midi.MidiInputPort;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.io.IOException;
 
-public class MidiOutputController extends MidiDeviceController {
+public class MidiOutputController extends MidiDeviceController<MidiOutputController, MidiInputPort> {
 
-    private final MidiInputPort midiPort;
+    private MidiInputPort sourcePort;
 
-    public MidiOutputController(final MidiInputPort midiInputPort,
-                                final MidiCore.PortRecord portRecord) {
+    public MidiOutputController(final MidiCore.PortRecord portRecord) {
 
         super(portRecord);
-        this.midiPort = midiInputPort;
+    }
+
+    @Override
+    protected MidiInputPort getSourcePort() {
+        return sourcePort;
+    }
+
+    @Nullable
+    @Override
+    protected MidiInputPort openSourcePort(@NonNull MidiDevice midiDevice) {
+        return midiDevice.openInputPort(getPortRecord().port);
+    }
+
+    @Override
+    protected void setSourcePort(@NonNull MidiInputPort sourcePort) {
+        this.sourcePort = sourcePort;
     }
 
     @Override
     public void onClose() throws IOException {
-        midiPort.flush();
-        midiPort.close();
+        sourcePort.flush();
+        sourcePort.close();
     }
 
     public void send(final MidiMessage message) throws IOException {
-        midiPort.send(message.getBytes(), message.getOffset(), message.getCount(), message.getTimestamp());
+        sourcePort.send(
+                message.getBytes(), message.getOffset(), message.getCount(), message.getTimestamp());
     }
 
 }

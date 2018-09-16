@@ -36,7 +36,7 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
         private final Map<PortRecord, MidiInputController> inputs = new HashMap<>();
         private final Map<PortRecord, MidiOutputController> outputs = new HashMap<>();
 
-        public DeviceIndex() { }
+        DeviceIndex() { }
 
         public PortRecord add(final String name, final int port) {
             final PortRecord record = new PortRecord(name, port);
@@ -157,31 +157,18 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     private class DeviceCallback extends MidiManager.DeviceCallback {
         @Override
         public void onDeviceAdded(MidiDeviceInfo device) {
-            super.onDeviceAdded(device);
-
+            // TODO: open device
         }
 
         @Override
         public void onDeviceRemoved(MidiDeviceInfo device) {
-            super.onDeviceRemoved(device);
+            // TODO: Close / remove device controller
         }
 
         @Override
         public void onDeviceStatusChanged(MidiDeviceStatus status) {
-            super.onDeviceStatusChanged(status);
             // TODO: Handle status change - Determine how different this is from the add/remove methods.
         }
-    }
-
-    // TODO: Consolidate the listener interfaces/classes below if possible
-    public interface OnControllerOpenedListener<T extends MidiDeviceController> {
-        void onControllerOpened(final T input);
-        void onError(final String errorMessage);
-    }
-
-    public interface OnControllersOpenedListener<T extends MidiDeviceController> {
-        void onControllersOpened(final List<T> inputs);
-        void onError(final String errorMessage);
     }
 
     public interface OnDevicesOpenedListener {
@@ -266,8 +253,9 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
      * @return The MidiDeviceInfo object describing the device you requested,
      *      or null if it does not exist.
      */
-    protected MidiDeviceInfo fetchDeviceInfo(final String deviceName) {
-
+    @Nullable
+    /* package */
+    MidiDeviceInfo fetchDeviceInfo(final String deviceName) {
         final MidiDeviceInfo[] infos = manager.getDevices();
         for (final MidiDeviceInfo info : infos) {
             final Bundle props = info.getProperties();
@@ -280,205 +268,54 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     }
 
     /**
-     * TODO
-     * @param portRecord
-     * @return
+     * Retrieve the MidiDeviceInfo object of a given product name.
+     * @param portRecord - A PortRecord object representing the "Product Name" of the MIDI device.
+     * @return The MidiDeviceInfo object describing the device you requested,
+     *      of null if it does not exist.
      */
-    protected MidiDeviceInfo fetchDeviceInfo(final PortRecord portRecord) {
+    @Nullable
+    /* package */
+    MidiDeviceInfo fetchDeviceInfo(final PortRecord portRecord) {
         return fetchDeviceInfo(portRecord.getName());
     }
 
     /**
-     * Retrieve a map of MidiDeviceInfo objects of a given list of product names.
-     * @param deviceNames - A list of device "Product Names" of which to retrieve..
-     * @return A Map of the product names matched up to their corresponding MidiDeviceInfo objects.
-     *      If no devices match, an empty map will be returned.
+     * Open a MidiDevice
+     * @param portRecord
+     * @param callback
+     * @param openHandler
      */
-    protected Map<String, MidiDeviceInfo> fetchDeviceInfosByNames(
-            final List<String> deviceNames) {
+    /* package */
+    void openDevice(@NonNull final PortRecord portRecord,
+                    @NonNull final MidiManager.OnDeviceOpenedListener callback,
+                    @Nullable final Handler openHandler) {
 
-        final Map<String, MidiDeviceInfo> result = new HashMap<>();
-        final MidiDeviceInfo[] infos = manager.getDevices();
-        for (final String deviceName : deviceNames) {
-            if (result.containsKey(deviceName)) {
-                // Already retrieved, skipping.
-                continue;
-            }
-            for (final MidiDeviceInfo info : infos) {
-                final Bundle props = info.getProperties();
-                final String name = props.getString(MidiDeviceInfo.PROPERTY_PRODUCT);
-                if (deviceName.equals(name)) {
-                    result.put(deviceName, info);
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Retrieve a map of MidiDeviceInfo objects of a given list of device records.
-     * @param portRecords - A list of device records with the value of name matching the
-     *                      MidiDeviceInfo's "Product Name".
-     * @return A map of the supplied PortRecords matched up to their corresponding
-     *      MidiDeviceInfo objects. If no devices match, an empty map will be returned.
-     */
-    protected Map<PortRecord, MidiDeviceInfo> fetchDeviceInfos(
-            final List<PortRecord> portRecords) {
-
-        final Map<PortRecord, MidiDeviceInfo> result = new HashMap<>();
-        final MidiDeviceInfo[] infos = manager.getDevices();
-        for (final PortRecord portRecord : portRecords) {
-            if (result.containsKey(portRecord)) {
-                // Already retrieved, skipping.
-                continue;
-            }
-            for (final MidiDeviceInfo info : infos) {
-                final Bundle props = info.getProperties();
-                final String name = props.getString(MidiDeviceInfo.PROPERTY_PRODUCT);
-                if (portRecord.getName().equals(name)) {
-                    result.put(portRecord, info);
-                }
-            }
-        }
-        return result;
+        final MidiDeviceInfo midiDeviceInfo = fetchDeviceInfo(portRecord.name);
+        manager.openDevice(midiDeviceInfo, callback, openHandler);
     }
 
     /**
      * Open a single MIDI Input Controller.
      * @param portRecord - A PortRecord describing the desired input.
      * @param listener - Callback to be executed upon completion of the opening process.
+     * @param openHandler - Optional handler to be used by the MIDI manager.
      */
     public void openInput(final PortRecord portRecord,
-                          final OnControllerOpenedListener<MidiInputController> listener,
+                          final MidiDeviceController.OnControllerOpenedListener<MidiInputController> listener,
                           final Handler openHandler) {
 
         final MidiInputController controller = index.getInput(portRecord);
         if (null != controller) {
-            listener.onControllerOpened(controller);
-            return;
+            if (controller.isOpen()) {
+                listener.onControllerOpened(controller);
+            } else {
+                controller.open(listener, openHandler);
+            }
+        } else {
+            final MidiInputController c = new MidiInputController(portRecord);
+            index.putInput(portRecord, c);
+            c.open(listener, openHandler);
         }
-        final MidiDeviceInfo portInfo = fetchDeviceInfo(portRecord.getName());
-        manager.openDevice(portInfo, new MidiManager.OnDeviceOpenedListener() {
-            @Override
-            public void onDeviceOpened(MidiDevice device) {
-                if (null == device) {
-                    listener.onError("MidiDevice failed to open and was null.");
-                } else {
-                    final MidiOutputPort outputPort = device.openOutputPort(portRecord.getPort());
-                    final MidiInputController controller =
-                            new MidiInputController(outputPort, portRecord);
-                    index.putInput(portRecord, controller);
-                    listener.onControllerOpened(controller);
-                }
-            }
-        }, openHandler);
-    }
-
-    /**
-     * Shared method for opening multiple MIDI devices at once.
-     * @param portRecords - A list of the PortRecords you wish to open.
-     * @param onDevicesOpenedListener
-     * @param openHandler - Optional handler to be used by the MIDI manager.
-     */
-    protected void openDevices(final List<PortRecord> portRecords,
-                            final OnDevicesOpenedListener onDevicesOpenedListener,
-                            final Handler openHandler) {
-
-        final Map<PortRecord, MidiDeviceInfo> infoMap = fetchDeviceInfos(portRecords);
-        final Iterator<Map.Entry<PortRecord, MidiDeviceInfo>> iterator =
-                infoMap.entrySet().iterator();
-
-        // TODO: This needs to be tested and verified with a large number of open requests at once.
-        final class RecursiveDeviceOpenedListener implements MidiManager.OnDeviceOpenedListener {
-
-            private Map.Entry<PortRecord, MidiDeviceInfo> currentEntry;
-
-            private void iterate() {
-                try {
-                    if (iterator.hasNext()) {
-                        currentEntry = iterator.next();
-                        iterator.remove();
-                        manager.openDevice(currentEntry.getValue(), this, openHandler);
-                    } else {
-                        onDevicesOpenedListener.onFinished();
-                    }
-                } catch (Exception e) {
-                    // TODO: Work exception into onError call...
-                    onDevicesOpenedListener.onError("An exception caused the open operation to abort.");
-                }
-            }
-
-            @Override
-            public void onDeviceOpened(MidiDevice device) {
-                try {
-                    onDevicesOpenedListener.onDeviceOpened(device, currentEntry.getKey());
-                    iterate();
-                } catch (Exception e) {
-                    // TODO: Work exception into onError call...
-                    onDevicesOpenedListener.onError("An exception caused the open operation to abort.");
-                }
-            }
-        }
-
-        final RecursiveDeviceOpenedListener deviceOpenedListener =
-                new RecursiveDeviceOpenedListener();
-        deviceOpenedListener.iterate();
-    }
-
-    /**
-     * Open one or more more than one MIDI Input Controller.
-     * @param portRecords - PortRecords describing the inputs to open.
-     * @param listener - Callback to be executed upon completion of the opening process.
-     * @param openHandler - Optional handler to be used by the MIDI manager.
-     */
-    public void openInputs(final List<PortRecord> portRecords,
-                           final OnControllersOpenedListener<MidiInputController> listener,
-                           final Handler openHandler) {
-
-        final List<MidiInputController> results = new ArrayList<>(portRecords.size());
-        // Checking existing controllers for matches
-        final Iterator<PortRecord> i = portRecords.iterator();
-        while (i.hasNext()) {
-            final PortRecord record = i.next();
-            final MidiInputController controller = index.getInput(record);
-            if (null != controller) {
-                results.add(controller);
-                i.remove();
-            }
-        }
-        // If all matched, execute callback
-        if (portRecords.isEmpty()) {
-            listener.onControllersOpened(results);
-            return;
-        }
-        // Open remaining PortRecords
-        final OnDevicesOpenedListener onDevicesOpenedListener = new OnDevicesOpenedListener() {
-            @Override
-            public void onFinished() {
-                listener.onControllersOpened(results);
-            }
-
-            @Override
-            public void onError(String errorMessage) {
-                listener.onError(errorMessage);
-            }
-
-            @Override
-            public void onDeviceOpened(MidiDevice device, PortRecord portRecord) {
-                if (null == device) {
-                    Log.d(TAG, String.format(Locale.US,
-                            "Encountered an error when opening input for PortRecord:%s",
-                            portRecord.getNickname()));
-                } else {
-                    final MidiOutputPort outputPort = device.openOutputPort(portRecord.port);
-                    final MidiInputController controller =
-                            new MidiInputController(outputPort, portRecord);
-                    index.putInput(portRecord, controller);
-                    results.add(controller);
-                }
-            }
-        };
-        openDevices(portRecords, onDevicesOpenedListener, openHandler);
     }
 
     /**
@@ -488,85 +325,22 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
      * @param openHandler - Optional handler to be used by the MIDI manager.
      */
     public void openOutput(final PortRecord portRecord,
-                           final OnControllerOpenedListener<MidiOutputController> listener,
+                           final MidiDeviceController.OnControllerOpenedListener<MidiOutputController> listener,
                            final Handler openHandler) {
 
+        // TODO: change out to retrieve indexed controllers OR create one. Attempt to open unopened controllers???????
         final MidiOutputController controller = index.getOutput(portRecord);
         if (null != controller) {
-            listener.onControllerOpened(controller);
-            return;
+            if (controller.isOpen()) {
+                listener.onControllerOpened(controller);
+            } else {
+                controller.open(listener, openHandler);
+            }
+        } else {
+            final MidiOutputController c = new MidiOutputController(portRecord);
+            index.putOutput(portRecord, c);
+            c.open(listener, openHandler);
         }
-        final MidiDeviceInfo portInfo = fetchDeviceInfo(portRecord.getName());
-        manager.openDevice(portInfo, new MidiManager.OnDeviceOpenedListener() {
-            @Override
-            public void onDeviceOpened(MidiDevice device) {
-                if (null == device) {
-                    listener.onError("MidiDevice failed to open and was null.");
-                } else {
-                    final MidiInputPort inputPort = device.openInputPort(portRecord.getPort());
-                    final MidiOutputController controller =
-                            new MidiOutputController(inputPort, portRecord);
-                    index.putOutput(portRecord, controller);
-                    listener.onControllerOpened(controller);
-                }
-            }
-        }, openHandler);
-    }
-
-    /**
-     * Open one or more more than one MIDI Output Controller.
-     * @param portRecords - PortRecords describing the outputs to open.
-     * @param listener - Callback to be executed upon completion of the opening process.
-     * @param openHandler - Optional handler to be used by the MIDI manager.
-     */
-    public void openOutputs(final List<PortRecord> portRecords,
-                            final OnControllersOpenedListener<MidiOutputController> listener,
-                            final Handler openHandler) {
-
-        final List<MidiOutputController> results = new ArrayList<>(portRecords.size());
-        // Checking existing controllers for matches
-        final Iterator<PortRecord> i = portRecords.iterator();
-        while (i.hasNext()) {
-            final PortRecord record = i.next();
-            final MidiOutputController controller = index.getOutput(record);
-            if (null != controller) {
-                results.add(controller);
-                i.remove();
-            }
-        }
-        // If all matched, execute callback
-        if (portRecords.isEmpty()) {
-            listener.onControllersOpened(results);
-            return;
-        }
-        // Open remaining PortRecords
-        final OnDevicesOpenedListener onDevicesOpenedListener = new OnDevicesOpenedListener() {
-            @Override
-            public void onFinished() {
-                listener.onControllersOpened(results);
-            }
-
-            @Override
-            public void onError(String errorMessage) {
-                listener.onError(errorMessage);
-            }
-
-            @Override
-            public void onDeviceOpened(MidiDevice device, PortRecord portRecord) {
-                if (null == device) {
-                    Log.d(TAG, String.format(Locale.US,
-                            "Encountered an error when opening output for PortRecord:%s",
-                            portRecord.getNickname()));
-                } else {
-                    final MidiInputPort inputPort = device.openInputPort(portRecord.port);
-                    final MidiOutputController controller =
-                            new MidiOutputController(inputPort, portRecord);
-                    index.putOutput(portRecord, controller);
-                    results.add(controller);
-                }
-            }
-        };
-        openDevices(portRecords, onDevicesOpenedListener, openHandler);
     }
 
     @Override
