@@ -7,8 +7,9 @@ import android.util.Log;
 
 import com.google.gson.JsonObject;
 import com.radicalninja.pimidithing.App;
-import com.radicalninja.pimidithing.ParkableWorkerThread;
+import com.radicalninja.pimidithing.CountDownWorkerThread;
 import com.radicalninja.pimidithing.midi.MidiCore;
+import com.radicalninja.pimidithing.midi.MidiDeviceController;
 import com.radicalninja.pimidithing.midi.MidiInputController;
 import com.radicalninja.pimidithing.midi.MidiOutputController;
 import com.radicalninja.pimidithing.midi.router.filter.BaseFilter;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /* package */
 class Configurator {
@@ -42,19 +44,20 @@ class Configurator {
     private final MidiCore midiCore = App.getInstance().getMidiCore();
     private final MidiRouter midiRouter;
     private final OnConfigFinishedListener onConfigFinishedListener;
-    private final ParkableWorkerThread workerThread;
+    private final CountDownWorkerThread workerThread;
 
 
-    public Configurator(@NonNull final MidiRouter midiRouter,
-                        @Nullable final OnConfigFinishedListener listener) {
+    /* package */
+    Configurator(@NonNull final MidiRouter midiRouter,
+                 @Nullable final OnConfigFinishedListener listener) {
 
         this.midiRouter = midiRouter;
         this.onConfigFinishedListener = listener;
-        this.workerThread = new ParkableWorkerThread(configRunner);
+        this.workerThread = new CountDownWorkerThread(configRunner);
     }
 
-    private final ParkableWorkerThread.ParkableRunnable<RouterConfig> configRunner =
-            new ParkableWorkerThread.ParkableRunnable<RouterConfig>() {
+    private final CountDownWorkerThread.CountDownRunnable<RouterConfig> configRunner =
+            new CountDownWorkerThread.CountDownRunnable<RouterConfig>() {
 
         List<MidiCore.PortRecord> collectRecords(final List<String> deviceNicknames) {
             if (null == deviceNicknames) {
@@ -100,7 +103,7 @@ class Configurator {
         }
 
         @Override
-        public void run(ParkableWorkerThread.ParkingValet parkingValet) throws NullPointerException {
+        public void run(CountDownWorkerThread.Latcher latcher) {
             final RouterConfig config = getData();
             if (null == config) {
                 throw new NullPointerException(
@@ -115,12 +118,12 @@ class Configurator {
                     final RouterConfig.Mapping mappingConfig = mappingEntry.getValue();
                     // - Inputs
                     final List<MidiCore.PortRecord> inputRecords = collectRecords(mappingConfig.getInputs());
-                    final List<MidiInputController> inputControllers =
-                            openInputs(inputRecords, parkingValet, getRetrievingValet(), callbackHandler);
+                    final Set<MidiInputController> inputControllers =
+                            openInputs(inputRecords, latcher, getUnlatcher(), callbackHandler);
                     // - Outputs
                     final List<MidiCore.PortRecord> outputRecords = collectRecords(mappingConfig.getOutputs());
-                    final List<MidiOutputController> outputControllers =
-                            openOutputs(outputRecords, parkingValet, getRetrievingValet(), callbackHandler);
+                    final Set<MidiOutputController> outputControllers =
+                            openOutputs(outputRecords, latcher, getUnlatcher(), callbackHandler);
                     // - Filters
                     final Map<String, JsonObject> filterConfigs = mappingConfig.getFilters();
                     final BaseFilter[] filters = collectFilters(filterConfigs);
@@ -160,54 +163,58 @@ class Configurator {
 
 
     /* package */
-    List<MidiInputController> openInputs(final List<MidiCore.PortRecord> portRecords,
-                                         final ParkableWorkerThread.ParkingValet parkingValet,
-                                         final ParkableWorkerThread.RetrievingValet retrievingValet,
-                                         final Handler callbackHandler)
+    Set<MidiInputController> openInputs(final List<MidiCore.PortRecord> portRecords,
+                                        final CountDownWorkerThread.Latcher latcher,
+                                        final CountDownWorkerThread.Unlatcher unlatcher,
+                                        final Handler callbackHandler)
             throws InterruptedException {
 
-        final MidiCore.OnControllersOpenedListener<MidiInputController> callback =
-                new MidiCore.OnControllersOpenedListener<MidiInputController>() {
+        final MidiDeviceController.OnControllerOpenedListener<MidiInputController> callback =
+                new MidiDeviceController.OnControllerOpenedListener<MidiInputController>() {
 
                     @Override
-                    public void onControllersOpened(List<MidiInputController> inputs) {
-                        retrievingValet.unpark(inputs);
+                    public void onControllerOpened(@NonNull MidiInputController controller) {
+                        unlatcher.unlatch(controller);
                     }
 
                     @Override
-                    public void onError(String errorMessage) {
+                    public void onError(@NonNull String errorMessage) {
                         Log.e(TAG, String.format(Locale.US,
                                 "Error encountered during InputController opening.\n%s", errorMessage));
-                        retrievingValet.unpark();
+                        unlatcher.unlatch();
                     }
                 };
-        midiCore.openInputs(portRecords, callback, callbackHandler);
-        return parkingValet.park();
+        for (final MidiCore.PortRecord portRecord : portRecords) {
+            midiCore.openInput(portRecord, callback, callbackHandler);
+        }
+        return latcher.latch(portRecords.size());
     }
 
     /* package */
-    List<MidiOutputController> openOutputs(final List<MidiCore.PortRecord> portRecords,
-                                         final ParkableWorkerThread.ParkingValet parkingValet,
-                                         final ParkableWorkerThread.RetrievingValet retrievingValet,
-                                         final Handler callbackHandler)
+    Set<MidiOutputController> openOutputs(final List<MidiCore.PortRecord> portRecords,
+                                          final CountDownWorkerThread.Latcher latcher,
+                                          final CountDownWorkerThread.Unlatcher unlatcher,
+                                          final Handler callbackHandler)
             throws InterruptedException {
 
-        final MidiCore.OnControllersOpenedListener<MidiOutputController> callback =
-                new MidiCore.OnControllersOpenedListener<MidiOutputController>() {
-
+        final MidiDeviceController.OnControllerOpenedListener<MidiOutputController> callback =
+                new MidiDeviceController.OnControllerOpenedListener<MidiOutputController>() {
                     @Override
-                    public void onControllersOpened(List<MidiOutputController> outputs) {
-                        retrievingValet.unpark(outputs);
+                    public void onControllerOpened(@NonNull MidiOutputController controller) {
+                        unlatcher.unlatch(controller);
                     }
 
                     @Override
-                    public void onError(String errorMessage) {
+                    public void onError(@NonNull String errorMessage) {
                         Log.e(TAG, String.format(Locale.US,
                                 "Error encountered during OutputController opening.\n%s", errorMessage));
-                        retrievingValet.unpark();
+                        unlatcher.unlatch();
                     }
                 };
-        midiCore.openOutputs(portRecords, callback, callbackHandler);
-        return parkingValet.park();
+        for (final MidiCore.PortRecord portRecord : portRecords) {
+            midiCore.openOutput(portRecord, callback, callbackHandler);
+        }
+        return latcher.latch(portRecords.size());
     }
+
 }

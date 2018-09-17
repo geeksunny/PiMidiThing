@@ -9,6 +9,7 @@ import com.radicalninja.pimidithing.util.ArrayUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /* package */
 class RouterMapping {
@@ -28,8 +29,8 @@ class RouterMapping {
     private MidiInputController.MessageListener midiMessageListener;
 
     /* package */
-    RouterMapping(final String name, final List<MidiInputController> inputs,
-                  final List<MidiOutputController> outputs) {
+    RouterMapping(final String name, final Set<MidiInputController> inputs,
+                  final Set<MidiOutputController> outputs) {
 
         this.name = name;
         this.inputs.addAll(inputs);
