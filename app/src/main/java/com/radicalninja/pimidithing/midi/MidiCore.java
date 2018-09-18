@@ -2,12 +2,9 @@ package com.radicalninja.pimidithing.midi;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.media.midi.MidiDevice;
 import android.media.midi.MidiDeviceInfo;
 import android.media.midi.MidiDeviceStatus;
-import android.media.midi.MidiInputPort;
 import android.media.midi.MidiManager;
-import android.media.midi.MidiOutputPort;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
@@ -19,10 +16,11 @@ import com.github.mjdev.libaums.UsbMassStorageDevice;
 import com.radicalninja.pimidithing.midi.router.MidiRouter;
 import com.radicalninja.pimidithing.midi.router.RouterConfig;
 import com.radicalninja.pimidithing.usb.MassStorageController;
+import com.radicalninja.pimidithing.util.MidiUtils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -72,16 +70,58 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
             return records.get(nickname);
         }
 
+        public List<PortRecord> getRecordsForDevice(final String productName) {
+            final List<PortRecord> result = new ArrayList<>();
+            for (final PortRecord portRecord : records.values()) {
+                if (portRecord.name.equals(productName)) {
+                    result.add(portRecord);
+                }
+            }
+            return result;
+        }
+
         public MidiInputController getInput(final PortRecord portRecord) {
             return inputs.get(portRecord);
+        }
+
+        public List<MidiInputController> getInputsForRecords(final List<PortRecord> portRecords) {
+            final List<MidiInputController> result = new ArrayList<>();
+            for (final PortRecord portRecord : portRecords) {
+                final MidiInputController input = inputs.get(portRecord);
+                if (null != input) {
+                    result.add(input);
+                }
+            }
+            return result;
+        }
+
+        public List<MidiInputController> getInputsForDevice(final String productName) {
+            final List<PortRecord> records = getRecordsForDevice(productName);
+            return getInputsForRecords(records);
         }
 
         public MidiOutputController getOutput(final PortRecord portRecord) {
             return outputs.get(portRecord);
         }
 
-        public boolean hasRecord(final String name) {
-            return records.containsKey(name);
+        public List<MidiOutputController> getOutputsForRecords(final List<PortRecord> portRecords) {
+            final List<MidiOutputController> result = new ArrayList<>();
+            for (final PortRecord portRecord : portRecords) {
+                final MidiOutputController output = outputs.get(portRecord);
+                if (null != output) {
+                    result.add(output);
+                }
+            }
+            return result;
+        }
+
+        public List<MidiOutputController> getOutputsForDevice(final String productName) {
+            final List<PortRecord> records = getRecordsForDevice(productName);
+            return getOutputsForRecords(records);
+        }
+
+        public boolean hasRecord(final String nickname) {
+            return records.containsKey(nickname);
         }
 
         public void putInput(final PortRecord portRecord, final MidiInputController input) {
@@ -155,27 +195,80 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
     }
 
     private class DeviceCallback extends MidiManager.DeviceCallback {
+        List<PortRecord> getPortRecords(final MidiDeviceInfo device) {
+            final Bundle props = device.getProperties();
+            final String name = props.getString(MidiDeviceInfo.PROPERTY_PRODUCT);
+            return index.getRecordsForDevice(name);
+        }
+
+        <T extends MidiDeviceController> void openControllers(final List<T> controllers) {
+            if (null == controllers || controllers.isEmpty()) {
+                return;
+            }
+            final MidiDeviceController.OnControllerOpenedListener<T> callback =
+                    new MidiDeviceController.OnControllerOpenedListener<T>() {
+
+                @Override
+                public void onControllerOpened(@NonNull T controller,
+                                               boolean success,
+                                               @Nullable String errorMessage) {
+
+                    if (success) {
+                        Log.d(TAG, "Hotplug open success!");
+                    } else {
+                        Log.d(TAG, "Hotplug open failed!");
+                    }
+                }
+            };
+            for (final T controller : controllers) {
+                controller.open(callback, null);
+            }
+        }
+
         @Override
         public void onDeviceAdded(MidiDeviceInfo device) {
-            // TODO: open device
+            Log.w(TAG, "OnDeviceAdded!");   // Should device name be included in log?
+            MidiUtils.listDeviceInfo(device);
+            final List<PortRecord> records = getPortRecords(device);
+            final List<MidiInputController> inputs = index.getInputsForRecords(records);
+            openControllers(inputs);
+            final List<MidiOutputController> outputs = index.getOutputsForRecords(records);
+            openControllers(outputs);
+        }
+
+        <T extends MidiDeviceController> void closeControllers(final List<T> controllers) {
+            if (null == controllers || controllers.isEmpty()) {
+                return;
+            }
+            for (final T controller : controllers) {
+                try {
+                    controller.close();
+                } catch (IOException e) {
+                    Log.e(TAG, "Error occurred during controller closure.", e);
+                }
+            }
         }
 
         @Override
         public void onDeviceRemoved(MidiDeviceInfo device) {
-            // TODO: Close / remove device controller
+            Log.w(TAG, "OnDeviceRemoved!");   // Should device name be included in log?
+            MidiUtils.listDeviceInfo(device);
+            final List<PortRecord> records = getPortRecords(device);
+            final List<MidiInputController> inputs = index.getInputsForRecords(records);
+            closeControllers(inputs);
+            Log.w(TAG, "Inputs closed!");
+            final List<MidiOutputController> outputs = index.getOutputsForRecords(records);
+            closeControllers(outputs);
+            Log.w(TAG, "Outputs closed!");
         }
 
         @Override
         public void onDeviceStatusChanged(MidiDeviceStatus status) {
-            // TODO: Handle status change - Determine how different this is from the add/remove methods.
+            // TODO: Is there anything that should be done here?
         }
     }
 
-    public interface OnDevicesOpenedListener {
-        void onDeviceOpened(final MidiDevice device, final PortRecord portRecord);
-        void onFinished();
-        void onError(final String errorMessage);
-    }
+    // TODO: Add exit cleanup handling; unregister the deviceCallback
 
     private static final String CONFIG_FILENAME = "config.json";
     private static final String TAG = MidiCore.class.getCanonicalName();
@@ -210,6 +303,7 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
         }
         // Create the router
         router = new MidiRouter(config);
+        started = true;
     }
 
     public void initRouter(@Nullable final MidiRouter.OnRouterReadyListener listener) {
@@ -223,13 +317,29 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
             if (null != listener) {
                 listener.onRouterError("MidiRouter is already started!", null);
             }
+            return;
         }
-        if (null != listener) {
-            final Handler handler = (null == callbackHandler) ? new Handler() : callbackHandler;
-            router.init(listener, handler);
-        } else {
-            router.init();
-        }
+        final MidiRouter.OnRouterReadyListener listenerWrapper =
+                new MidiRouter.OnRouterReadyListener() {
+
+                    @Override
+                    public void onRouterReady() {
+                        // Setup hotplugging
+                        manager.registerDeviceCallback(deviceCallback, null);
+                        if (null != listener) {
+                            listener.onRouterReady();
+                        }
+                    }
+
+                    @Override
+                    public void onRouterError(String message, @Nullable Throwable error) {
+                        if (null != listener) {
+                            listener.onRouterError(message, error);
+                        }
+                    }
+                };
+        final Handler handler = (null == callbackHandler) ? new Handler() : callbackHandler;
+        router.init(listenerWrapper, handler);
     }
 
     public PortRecord getPortRecord(final String nickname) {
@@ -290,8 +400,15 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
                     @NonNull final MidiManager.OnDeviceOpenedListener callback,
                     @Nullable final Handler openHandler) {
 
+        Log.d(TAG, "MidiCore.openDevice | name: "+portRecord.name+" | START");
         final MidiDeviceInfo midiDeviceInfo = fetchDeviceInfo(portRecord.name);
-        manager.openDevice(midiDeviceInfo, callback, openHandler);
+        if (null == midiDeviceInfo) {
+            Log.d(TAG, "MidiCore.openDevice | name: "+portRecord.name+" | DEVICE INFO NULL");
+            callback.onDeviceOpened(null);
+        } else {
+            Log.d(TAG, "MidiCore.openDevice | name: "+portRecord.name+" | DEVICE INFO SUCCESS, REQUESTING DEVICE FROM API");
+            manager.openDevice(midiDeviceInfo, callback, openHandler);
+        }
     }
 
     /**
@@ -307,7 +424,7 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
         final MidiInputController controller = index.getInput(portRecord);
         if (null != controller) {
             if (controller.isOpen()) {
-                listener.onControllerOpened(controller);
+                listener.onControllerOpened(controller, true, null);
             } else {
                 controller.open(listener, openHandler);
             }
@@ -328,11 +445,10 @@ public class MidiCore implements MassStorageController.UsbMassStorageListener {
                            final MidiDeviceController.OnControllerOpenedListener<MidiOutputController> listener,
                            final Handler openHandler) {
 
-        // TODO: change out to retrieve indexed controllers OR create one. Attempt to open unopened controllers???????
         final MidiOutputController controller = index.getOutput(portRecord);
         if (null != controller) {
             if (controller.isOpen()) {
-                listener.onControllerOpened(controller);
+                listener.onControllerOpened(controller, true, null);
             } else {
                 controller.open(listener, openHandler);
             }

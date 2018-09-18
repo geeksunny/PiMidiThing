@@ -30,23 +30,6 @@ public class MidiRouter {
 
     protected void setConfig(final RouterConfig config) {
         this.config = config;
-        // TODO: SETUP MAPPINGS AND OTHER FEATURES HERE
-    }
-
-    public void init() {
-        if (started) {
-            // Router is already started!
-            return;
-        }
-        final Configurator.OnConfigFinishedListener onConfigFinished =
-                new Configurator.OnConfigFinishedListener() {
-                    @Override
-                    public void onFinish() {
-                        started = true;
-                    }
-                };
-        final Configurator configurator = new Configurator(this, onConfigFinished);
-        configurator.start(config);
     }
 
     public void init(@NonNull final OnRouterReadyListener listener,

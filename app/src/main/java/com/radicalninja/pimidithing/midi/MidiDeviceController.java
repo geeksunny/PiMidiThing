@@ -17,8 +17,9 @@ public abstract class MidiDeviceController
         implements Closeable {
 
     public interface OnControllerOpenedListener<T extends MidiDeviceController> {
-        void onControllerOpened(@NonNull final T controller);
-        void onError(@NonNull final String errorMessage);
+        void onControllerOpened(@NonNull final T controller,
+                                final boolean success,
+                                @Nullable String errorMessage);
     }
 
     private static final String TAG = MidiDeviceController.class.getCanonicalName();
@@ -36,34 +37,40 @@ public abstract class MidiDeviceController
     @Nullable
     protected abstract SP openSourcePort(@NonNull final MidiDevice midiDevice);
 
-    protected abstract void setSourcePort(@NonNull final SP sourcePort);
+    protected abstract void closeSourcePort() throws IOException;
 
     protected abstract SP getSourcePort();
 
-    public abstract void onClose() throws IOException;
+    protected abstract void setSourcePort(@NonNull final SP sourcePort);
 
     public void open(@NonNull final OnControllerOpenedListener<T> listener,
                      @Nullable final Handler openHandler) {
 
+        final T controller = (T) this;
         if (isOpen) {
             Log.w(TAG, "Device is already opened.");
-            listener.onControllerOpened((T) this);
+            listener.onControllerOpened(controller, true, null);
             return;
         }
-        // TODO: Add some logic to check isOpen() before proceeding
         final MidiManager.OnDeviceOpenedListener callback = new MidiManager.OnDeviceOpenedListener() {
             @Override
             public void onDeviceOpened(MidiDevice device) {
                 if (null == device) {
-                    listener.onError("Encountered an error opening the device");
+                    Log.d(TAG, "Controller.openDevice | name: "+portRecord.name+" | FAILED, MIDI DEVICE NULL");
+                    listener.onControllerOpened(controller, false,
+                            "Encountered an error opening the device.");
                 } else {
+                    Log.d(TAG, "Controller.openDevice | name: "+portRecord.name+" | SUCCESS, OPENING PORT");
                     final SP sourcePort = MidiDeviceController.this.openSourcePort(device);
                     if (null == sourcePort) {
-                        listener.onError("Failed to open the device's source port.");
+                        Log.d(TAG, "Controller.openDevice | name: "+portRecord.name+" | FAILED, PORT NULL");
+                        listener.onControllerOpened(controller, false,
+                                "Failed to open the device's source port.");
                     } else {
+                        Log.d(TAG, "Controller.openDevice | name: "+portRecord.name+" | SUCCESS, PORT OPENED");
                         MidiDeviceController.this.setSourcePort(sourcePort);
                         isOpen = true;
-                        listener.onControllerOpened((T) MidiDeviceController.this);
+                        listener.onControllerOpened(controller, true, null);
                     }
                 }
             }
@@ -74,10 +81,8 @@ public abstract class MidiDeviceController
     @Override
     public void close() throws IOException {
         if (this.isOpen) {
-            this.onClose();
-            // TODO: Should this be handled here or left up to implementation?
-            //getSourcePort().close();
-            this.isOpen = true;
+            this.closeSourcePort();
+            this.isOpen = false;
         }
     }
 

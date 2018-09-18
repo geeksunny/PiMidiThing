@@ -24,7 +24,6 @@ public class RouterConfig {
     private static final String JSON_KEY_DEVICES = "devices";
     private static final String JSON_KEY_NAME = "name";
     private static final String JSON_KEY_PORT = "port";
-    private static final String JSON_KEY_IGNORE = "ignore";
 
     private static final String JSON_KEY_MAPPINGS = "mappings";
     private static final String JSON_KEY_INPUTS = "inputs";
@@ -53,7 +52,6 @@ public class RouterConfig {
     private static final String JSON_KEY_VERBOSE = "verbose";
 
     private final Map<String, Device> devices = new HashMap<>();
-    private final List<String> ignore = new ArrayList<>();    // TODO: Refactor accordingly for IGNORE implementation on Android
     private final Map<String, Mapping> mappings = new HashMap<>();
     private final Clock clock = new Clock();
     private final List<Sysex> sysex = new ArrayList<>();
@@ -83,10 +81,6 @@ public class RouterConfig {
 
     public Map<String, Device> getDevices() {
         return devices;
-    }
-
-    public List<String> getIgnore() {
-        return ignore;
     }
 
     public Map<String, Mapping> getMappings() {
@@ -282,8 +276,6 @@ public class RouterConfig {
                     config.devices.put(element.getKey(), device);
                 }
             }
-            // Parse ignore list
-            config.ignore.addAll(JsonUtils.getAsList(_json.get(JSON_KEY_IGNORE), String.class, context));
             // Parse mappings
             final JsonObject mappings = JsonUtils.getObject(_json, JSON_KEY_MAPPINGS);
             if (null != mappings) {

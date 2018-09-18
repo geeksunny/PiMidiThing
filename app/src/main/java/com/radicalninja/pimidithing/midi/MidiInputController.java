@@ -42,14 +42,18 @@ public class MidiInputController
 
     @Override
     protected void setSourcePort(@NonNull MidiOutputPort sourcePort) {
-        this.sourcePort = sourcePort;
-        this.sourcePort.connect(receiver);
+        synchronized (receiver) {
+            this.sourcePort = sourcePort;
+            this.sourcePort.connect(receiver);
+        }
     }
 
     @Override
-    public void onClose() throws IOException {
+    public void closeSourcePort() throws IOException {
         synchronized (receiver) {
-            receiver.listeners.clear();
+            this.sourcePort.disconnect(receiver);
+//            receiver.listeners.clear();
+            receiver.flush();
             sourcePort.close();
         }
     }

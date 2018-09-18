@@ -33,14 +33,16 @@ public class MidiOutputController extends MidiDeviceController<MidiOutputControl
     }
 
     @Override
-    public void onClose() throws IOException {
+    public void closeSourcePort() throws IOException {
         sourcePort.flush();
         sourcePort.close();
     }
 
     public void send(final MidiMessage message) throws IOException {
-        sourcePort.send(
-                message.getBytes(), message.getOffset(), message.getCount(), message.getTimestamp());
+        if (isOpen()) { // TODO: replace with (null != sourcePort) ?? Can be nullified in onClose()
+            sourcePort.send(
+                    message.getBytes(), message.getOffset(), message.getCount(), message.getTimestamp());
+        }
     }
 
 }

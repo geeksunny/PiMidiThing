@@ -173,18 +173,20 @@ class Configurator {
                 new MidiDeviceController.OnControllerOpenedListener<MidiInputController>() {
 
                     @Override
-                    public void onControllerOpened(@NonNull MidiInputController controller) {
-                        unlatcher.unlatch(controller);
-                    }
+                    public void onControllerOpened(@NonNull MidiInputController controller,
+                                                   boolean success,
+                                                   @Nullable String errorMessage) {
 
-                    @Override
-                    public void onError(@NonNull String errorMessage) {
-                        Log.e(TAG, String.format(Locale.US,
-                                "Error encountered during InputController opening.\n%s", errorMessage));
-                        unlatcher.unlatch();
+                        Log.d(TAG, "Opened input: "+controller.getPortRecord().getNickname());
+                        if (!success) {
+                            Log.e(TAG, String.format(Locale.US,
+                                    "Error encountered during InputController opening.\n%s", errorMessage));
+                        }
+                        unlatcher.unlatch(controller);
                     }
                 };
         for (final MidiCore.PortRecord portRecord : portRecords) {
+            Log.d(TAG, "Opening input: "+portRecord.getNickname());
             midiCore.openInput(portRecord, callback, callbackHandler);
         }
         return latcher.latch(portRecords.size(), true);
@@ -199,19 +201,22 @@ class Configurator {
 
         final MidiDeviceController.OnControllerOpenedListener<MidiOutputController> callback =
                 new MidiDeviceController.OnControllerOpenedListener<MidiOutputController>() {
-                    @Override
-                    public void onControllerOpened(@NonNull MidiOutputController controller) {
-                        unlatcher.unlatch(controller);
-                    }
 
                     @Override
-                    public void onError(@NonNull String errorMessage) {
-                        Log.e(TAG, String.format(Locale.US,
-                                "Error encountered during OutputController opening.\n%s", errorMessage));
-                        unlatcher.unlatch();
+                    public void onControllerOpened(@NonNull MidiOutputController controller,
+                                                   boolean success,
+                                                   @Nullable String errorMessage) {
+
+                        Log.d(TAG, "Opened output: "+controller.getPortRecord().getNickname());
+                        if (!success) {
+                            Log.e(TAG, String.format(Locale.US,
+                                    "Error encountered during OutputController opening.\n%s", errorMessage));
+                        }
+                        unlatcher.unlatch(controller);
                     }
                 };
         for (final MidiCore.PortRecord portRecord : portRecords) {
+            Log.d(TAG, "Opening output: "+portRecord.getNickname());
             midiCore.openOutput(portRecord, callback, callbackHandler);
         }
         return latcher.latch(portRecords.size(), true);
