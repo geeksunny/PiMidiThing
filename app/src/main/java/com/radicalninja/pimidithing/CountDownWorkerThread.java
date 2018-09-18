@@ -16,27 +16,39 @@ public class CountDownWorkerThread extends Thread {
 
     public interface Latcher {
         boolean isLatched();
+
         @Nullable
         <T> T latch() throws InterruptedException;
+
         @Nullable
         <T> T latch(final long timeout, final TimeUnit unit) throws InterruptedException;
-        <T> Set<T> latch(final int latches) throws InterruptedException;
-        <T> Set<T> latch(final int latches, final long timeout, final TimeUnit unit)
-                throws InterruptedException;
+
+        <T> Set<T> latch(final int latches, final boolean trimNullResults)
+                throws InterruptedException, NegativeArraySizeException;
+
+        <T> Set<T> latch(final int latches,
+                         final boolean trimNullResults,
+                         final long timeout,
+                         final TimeUnit unit)
+                throws InterruptedException, NegativeArraySizeException;
     }
 
     public interface Unlatcher {
         boolean isLatched();
+
         void unlatch();
+
         <T> void unlatch(final T result);
+
         void unlatchAll();
+
         <T> void unlatchAll(final T result);
     }
 
     private static final String TAG = CountDownWorkerThread.class.getCanonicalName();
 
     private final AtomicInteger latchCount = new AtomicInteger(0);
-    private final ConcurrentLinkedQueue<Object> resultQueue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<SubtaskResult> resultQueue = new ConcurrentLinkedQueue<>();
 
     private CountDownLatch latch;
 
@@ -65,13 +77,12 @@ public class CountDownWorkerThread extends Thread {
                 latch = new CountDownLatch(currentLatches);
                 latch.await();
             }
-            // TODO: Should we check type against T here? or just assume it's right based on the logic used?
-            return (T) resultQueue.poll();
+            return (T) resultQueue.poll().result;
         }
 
         @Nullable
         @Override
-        public <T> T latch(long timeout, TimeUnit unit) throws InterruptedException {
+        public <T> T latch(final long timeout, final TimeUnit unit) throws InterruptedException {
             final int currentLatches = latchCount.incrementAndGet();
             if (currentLatches > 0) {
                 latch = new CountDownLatch(currentLatches);
@@ -81,13 +92,16 @@ public class CountDownWorkerThread extends Thread {
                     // TODO: How should following calls to unlatch() be handled in the case of a timeout?
                 }
             }
-            // TODO: Should we check type against T here? or just assume it's right based on the logic used?
-            return (T) resultQueue.poll();
+            return (T) resultQueue.poll().result;
         }
 
         @Override
-        public <T> Set<T> latch(int latches) throws InterruptedException {
-            // TODO: Check and handle case of negative or zero value to `latches`
+        public <T> Set<T> latch(final int latches, final boolean trimNullResults)
+                throws InterruptedException, NegativeArraySizeException {
+
+            if (latches < 0) {
+                throw new NegativeArraySizeException("Number of latches was less than zero.");
+            }
             final Set<T> result = new ArraySet<>(latches);
             final int currentLatches = latchCount.addAndGet(latches);
             if (currentLatches > 0) {
@@ -95,17 +109,25 @@ public class CountDownWorkerThread extends Thread {
                 latch.await();
             }
             for (int i = 0; i < latches; i++) {
-                // TODO: Should we check type against T here? or just assume it's right based on the logic used?
-                result.add((T) resultQueue.poll());
+                final SubtaskResult<T> value = resultQueue.poll();
+                if (trimNullResults && null == value.result) {
+                    continue;
+                }
+                result.add(value.result);
             }
             return result;
         }
 
         @Override
-        public <T> Set<T> latch(int latches, long timeout, TimeUnit unit)
-                throws InterruptedException {
+        public <T> Set<T> latch(final int latches,
+                                final boolean trimNullResults,
+                                final long timeout,
+                                final TimeUnit unit)
+                throws InterruptedException, NegativeArraySizeException {
 
-            // TODO: Check and handle case of negative or zero value to `latches`
+            if (latches < 0) {
+                throw new NegativeArraySizeException("Number of latches was less than zero.");
+            }
             final Set<T> result = new ArraySet<>(latches);
             final int currentLatches = latchCount.addAndGet(latches);
             if (currentLatches > 0) {
@@ -114,8 +136,11 @@ public class CountDownWorkerThread extends Thread {
                 // TODO: What should be done here if timedOut is true? Can we gauge how many latches are left with latchCount?
             }
             for (int i = 0; i < latches; i++) {
-                // TODO: Should we check type against T here? or just assume it's right based on the logic used?
-                result.add((T) resultQueue.poll());
+                final SubtaskResult<T> value = resultQueue.poll();
+                if (trimNullResults && null == value.result) {
+                    continue;
+                }
+                result.add(value.result);
             }
             return result;
         }
@@ -130,16 +155,20 @@ public class CountDownWorkerThread extends Thread {
 
         @Override
         public void unlatch() {
-            resultQueue.add(null);
+            resultQueue.add(new SubtaskResult(null));
             latchCount.decrementAndGet();
-            latch.countDown();
+            if (null != latch) {
+                latch.countDown();
+            }
         }
 
         @Override
         public <T> void unlatch(T result) {
-            resultQueue.add(result);
+            resultQueue.add(new SubtaskResult(result));
             latchCount.decrementAndGet();
-            latch.countDown();
+            if (null != latch) {
+                latch.countDown();
+            }
         }
 
         @Override
@@ -148,8 +177,10 @@ public class CountDownWorkerThread extends Thread {
             if (latches > 0) {
                 latchCount.addAndGet(-latches); // Reduce to zero
                 for (int i = 0; i < latches; i++) {
-                    resultQueue.add(null);
-                    latch.countDown();
+                    resultQueue.add(new SubtaskResult(null));
+                    if (null != latch) {
+                        latch.countDown();
+                    }
                 }
             }
         }
@@ -229,7 +260,8 @@ public class CountDownWorkerThread extends Thread {
         }
 
         public <T> Set<T> latchAndExecSubtask(final SubtaskRunnable<T> subtaskRunnable,
-                                           final int latches)
+                                              final int latches,
+                                              final boolean trimNullResults)
                 throws InterruptedException {
 
             if (null != subtaskHandler) {
@@ -239,7 +271,7 @@ public class CountDownWorkerThread extends Thread {
             subtaskHandler = new Handler(getSubtaskLooper());
             subtaskHandler.post(subtaskRunnable);
 //            subtaskHandler.postDelayed(subtaskRunnable, POST_DELAY_MS);
-            return latcher.latch(latches);
+            return latcher.latch(latches, trimNullResults);
         }
 
     }
@@ -253,6 +285,16 @@ public class CountDownWorkerThread extends Thread {
         @Override
         public void run() {
             run(unlatcher);
+        }
+
+    }
+
+    private static class SubtaskResult<T> {
+
+        private final T result;
+
+        SubtaskResult(final T result) {
+            this.result = result;
         }
 
     }

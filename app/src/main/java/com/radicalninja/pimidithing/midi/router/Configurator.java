@@ -187,7 +187,7 @@ class Configurator {
         for (final MidiCore.PortRecord portRecord : portRecords) {
             midiCore.openInput(portRecord, callback, callbackHandler);
         }
-        return latcher.latch(portRecords.size());
+        return latcher.latch(portRecords.size(), true);
     }
 
     /* package */
@@ -214,7 +214,7 @@ class Configurator {
         for (final MidiCore.PortRecord portRecord : portRecords) {
             midiCore.openOutput(portRecord, callback, callbackHandler);
         }
-        return latcher.latch(portRecords.size());
+        return latcher.latch(portRecords.size(), true);
     }
 
 }
