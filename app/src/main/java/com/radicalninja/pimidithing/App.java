@@ -2,7 +2,6 @@ package com.radicalninja.pimidithing;
 
 import android.app.Application;
 import android.content.Context;
-import android.graphics.Color;
 import android.hardware.SensorManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -14,9 +13,9 @@ import com.google.gson.GsonBuilder;
 import com.radicalninja.pimidithing.midi.MidiCore;
 import com.radicalninja.pimidithing.midi.router.MidiRouter;
 import com.radicalninja.pimidithing.midi.router.RouterConfig;
+import com.radicalninja.pimidithing.ui.SenseHatController;
 import com.radicalninja.pimidithing.usb.MassStorageController;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
@@ -33,6 +32,7 @@ public class App extends Application implements MidiRouter.OnRouterReadyListener
     private MidiCore midiCore;
     private Gson gson;
     private MassStorageController massStorageController;
+    private SenseHatController senseHatController;
 
     private LedMatrix ledMatrix;
     private SenseHat senseHat;
@@ -85,17 +85,9 @@ public class App extends Application implements MidiRouter.OnRouterReadyListener
     }
 
     private void initSenseHat() {
-        try {
-            // TODO: Joystick monitoring
-            // TODO: alert messages
-            // TODO: Handle this feature as optional. Exception will be thrown when sensehat is not found.
-            sensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);
-            senseHat = SenseHat.init(sensorManager);
-            ledMatrix = senseHat.getLedMatrix();
-            ledMatrix.draw(Color.TRANSPARENT);
-        } catch (IOException e) {
-            Log.e(TAG, "Error while initializing SenseHAT!", e);
-        }
+        sensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);
+        senseHatController = SenseHatController.init(sensorManager);
+        senseHatController.blankDisplay();
     }
 
     public MidiCore getMidiCore() {
