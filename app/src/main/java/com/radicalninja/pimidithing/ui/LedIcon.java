@@ -20,7 +20,7 @@ import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Size;
 
-public class LedIcon {
+public class LedIcon extends LedDrawable {
 
     @NonNull
     public static Bitmap createIconBitmap(@NonNull final Resources resources,
@@ -43,22 +43,18 @@ public class LedIcon {
         return new LedIcon(resources, backgroundColor, layer).createBitmap();
     }
 
-    private final Resources resources;
     private final List<Layer> layers = new ArrayList<>();
 
-    @ColorInt private int backgroundColor = -1;
-
     public LedIcon(@NonNull final Resources resources) {
-        this.resources = resources;
+        super(resources);
     }
 
     public LedIcon(@NonNull final Resources resources, @ColorInt final int backgroundColor) {
-        this.resources = resources;
-        this.backgroundColor = backgroundColor;
+        super(resources, backgroundColor);
     }
 
     public LedIcon(@NonNull final Resources resources, @NonNull final Layer initialLayer) {
-        this.resources = resources;
+        super(resources);
         layers.add(initialLayer);
     }
 
@@ -66,9 +62,26 @@ public class LedIcon {
                    @ColorInt final int backgroundColor,
                    @NonNull final Layer initialLayer) {
 
-        this.resources = resources;
-        this.backgroundColor = backgroundColor;
+        super(resources, backgroundColor);
         layers.add(initialLayer);
+    }
+
+    @Override
+    public void draw(@NonNull final Canvas canvas) {
+        final Resources resources = getResources();
+        for (final Layer layer : layers) {
+            layer.draw(canvas, resources);
+        }
+    }
+
+    @Override
+    public int getWidth() {
+        return LedMatrix.WIDTH;
+    }
+
+    @Override
+    public int getHeight() {
+        return LedMatrix.HEIGHT;
     }
 
     public void addLayer(@NonNull final Layer layer) {
@@ -84,27 +97,7 @@ public class LedIcon {
     }
 
     public List<Layer> getLayers() {
-        // TODO: Should this be a copy of layers rather than direct reference?
-        return layers;
-    }
-
-    @NonNull
-    public void setBackgroundColor(@ColorInt int backgroundColor) {
-        this.backgroundColor = backgroundColor;
-    }
-
-    @NonNull
-    public Bitmap createBitmap() {
-        final Bitmap result = Bitmap.createBitmap(
-                LedMatrix.WIDTH, LedMatrix.HEIGHT, Bitmap.Config.ARGB_8888, true);
-        final Canvas canvas = new Canvas(result);
-        if (backgroundColor != -1) {
-            canvas.drawColor(backgroundColor);
-        }
-        for (final Layer layer : layers) {
-            layer.draw(canvas, resources);
-        }
-        return result;
+        return new ArrayList<>(layers);
     }
 
     @NonNull
