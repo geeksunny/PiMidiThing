@@ -22,6 +22,7 @@ import androidx.annotation.Size;
 
 public class LedIcon {
 
+    @NonNull
     public static Bitmap createIconBitmap(@NonNull final Resources resources,
                                           @DrawableRes final int iconDrawable,
                                           @ColorInt final int iconColor) {
@@ -31,6 +32,7 @@ public class LedIcon {
         return new LedIcon(resources, layer).createBitmap();
     }
 
+    @NonNull
     public static Bitmap createIconBitmap(@NonNull final Resources resources,
                                           @DrawableRes final int iconDrawable,
                                           @ColorInt final int iconColor,

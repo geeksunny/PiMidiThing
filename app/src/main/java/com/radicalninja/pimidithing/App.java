@@ -34,10 +34,6 @@ public class App extends Application implements MidiRouter.OnRouterReadyListener
     private MassStorageController massStorageController;
     private SenseHatController senseHatController;
 
-    private LedMatrix ledMatrix;
-    private SenseHat senseHat;
-    private SensorManager sensorManager;
-
     @Override
     public void onCreate() {
         super.onCreate();
@@ -85,8 +81,7 @@ public class App extends Application implements MidiRouter.OnRouterReadyListener
     }
 
     private void initSenseHat() {
-        sensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);
-        senseHatController = SenseHatController.init(sensorManager);
+        senseHatController = SenseHatController.init(this);
         senseHatController.blankDisplay();
     }
 

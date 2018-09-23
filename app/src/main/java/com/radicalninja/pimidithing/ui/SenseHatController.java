@@ -1,5 +1,7 @@
 package com.radicalninja.pimidithing.ui;
 
+import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.hardware.SensorManager;
 import android.util.Log;
@@ -9,32 +11,58 @@ import com.eon.androidthings.sensehatdriverlibrary.devices.LedMatrix;
 
 import java.io.IOException;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.Nullable;
 
 public class SenseHatController {
 
-    public static SenseHatController init(final SensorManager sensorManager) {
+    public static SenseHatController init(final Context context) {
+
+        if (null != instance) {
+            Log.w(TAG, "SenseHatController instance was already initialized.");
+            return instance;
+        }
+        SenseHatController controller;
         try {
-            SenseHat senseHat = SenseHat.init(sensorManager);
-            return new SenseHatController(senseHat);
+            final SensorManager sensorManager =
+                    (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
+            final SenseHat senseHat = SenseHat.init(sensorManager);
+            controller = new SenseHatController(senseHat, context.getResources());
         } catch (IOException e) {
             Log.w(TAG, "Encountered an error opening SenseHAT. Interactions are disabled.", e);
-            return new SenseHatController(null);
+            controller = new SenseHatController(null, null);
         }
+        instance = controller;
+        return controller;
+    }
+
+    public static SenseHatController getInstance() {
+        if (null == instance) {
+            throw new IllegalStateException("SenseHatController has not been initialized.");
+        }
+        return instance;
     }
 
     private static final String TAG = SenseHatController.class.getCanonicalName();
 
+    private static SenseHatController instance;
+
     private final boolean enabled;
     private final SenseHat senseHat;
     private final LedMatrix ledMatrix;
+    private final Resources resources;
 
     // TODO: Animation thread
 
-    private SenseHatController(@Nullable final SenseHat senseHat) {
+    private SenseHatController(@Nullable final SenseHat senseHat, final Resources resources) {
         enabled = null != senseHat;
         this.senseHat = senseHat;
-        ledMatrix = (enabled) ? senseHat.getLedMatrix() : null;
+        this.ledMatrix = (enabled) ? senseHat.getLedMatrix() : null;
+        this.resources = (enabled) ? resources : null;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
     }
 
     public void blankDisplay() {
@@ -60,7 +88,28 @@ public class SenseHatController {
         }
     }
 
-    public void blinkColor(/* color */) {
+    public void displayIcon(final LedIcon icon) {
+        if (!enabled) {
+            return;
+        }
+        try {
+            ledMatrix.draw(icon.createBitmap());
+        } catch (IOException e) {
+            Log.e(TAG, "Error while displaying icon on LED Matrix", e);
+        }
+    }
+
+    public void blinkColor(final long intervalDuration, @ColorInt final int color) {
+        if (!enabled) {
+            return;
+        }
+        // TODO
+    }
+
+    public void blinkColors(final long intervalDuration, @ColorInt final int ... colors) {
+        if (!enabled) {
+            return;
+        }
         // TODO
     }
 
