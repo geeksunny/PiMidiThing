@@ -2,8 +2,8 @@ package com.radicalninja.pimidithing.ui;
 
 import android.content.Context;
 import android.content.res.Resources;
-import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.hardware.SensorManager;
 import android.util.Log;
 
@@ -18,7 +18,6 @@ import androidx.annotation.Nullable;
 public class SenseHatController {
 
     public static SenseHatController init(final Context context) {
-
         if (null != instance) {
             Log.w(TAG, "SenseHatController instance was already initialized.");
             return instance;
@@ -53,10 +52,10 @@ public class SenseHatController {
     private final LedMatrix ledMatrix;
     private final Resources resources;
 
-    // TODO: Animation thread
-
-    // All draws take place on the display thread.
+    // All draws (except initial blanking) take place on the display thread.
     private final LedDisplayThread displayThread;
+
+    private Typeface typeface;
 
     private SenseHatController(@Nullable final SenseHat senseHat,
                                @Nullable final Resources resources) {
@@ -65,7 +64,14 @@ public class SenseHatController {
         this.senseHat = senseHat;
         this.ledMatrix = (enabled) ? senseHat.getLedMatrix() : null;
         this.resources = (enabled) ? resources : null;
-        displayThread = new LedDisplayThread(ledMatrix);
+        displayThread = (enabled) ? new LedDisplayThread(ledMatrix) : null;
+    }
+
+    protected Typeface getTypeface() {
+        if (null == typeface) {
+            typeface = Typeface.createFromAsset(resources.getAssets(), "pixelated.ttf");
+        }
+        return typeface;
     }
 
     public boolean isEnabled() {
@@ -87,25 +93,20 @@ public class SenseHatController {
         if (!enabled) {
             return;
         }
-        try {
-            // TODO: Implement message scrolling
-            throw new IOException();
-        } catch (IOException e) {
-            Log.e(TAG, "Error while displaying message on LED Matrix", e);
-        }
+        final LedText msg = new LedText(resources, getTypeface());
+        msg.setMessage(message);
+        final LedDisplayThread.Job job =
+                new LedDisplayThread.JobBuilder().setFrame(msg.createBitmap()).build();
+        displayThread.queueJob(job);
     }
 
     public void displayIcon(final LedIcon icon) {
         if (!enabled) {
             return;
         }
-        try {
-            final Bitmap iconBitmap = icon.createBitmap();
-            ledMatrix.draw(iconBitmap);
-            iconBitmap.recycle();
-        } catch (IOException e) {
-            Log.e(TAG, "Error while displaying icon on LED Matrix", e);
-        }
+        final LedDisplayThread.Job job =
+                new LedDisplayThread.JobBuilder().setFrame(icon.createBitmap()).build();
+        displayThread.queueJob(job);
     }
 
     public void blinkColor(final long intervalDuration, @ColorInt final int color) {
