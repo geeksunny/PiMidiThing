@@ -2,6 +2,7 @@ package com.radicalninja.pimidithing.ui;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.hardware.SensorManager;
 import android.util.Log;
@@ -54,11 +55,17 @@ public class SenseHatController {
 
     // TODO: Animation thread
 
-    private SenseHatController(@Nullable final SenseHat senseHat, final Resources resources) {
+    // All draws take place on the display thread.
+    private final LedDisplayThread displayThread;
+
+    private SenseHatController(@Nullable final SenseHat senseHat,
+                               @Nullable final Resources resources) {
+
         enabled = null != senseHat;
         this.senseHat = senseHat;
         this.ledMatrix = (enabled) ? senseHat.getLedMatrix() : null;
         this.resources = (enabled) ? resources : null;
+        displayThread = new LedDisplayThread(ledMatrix);
     }
 
     public boolean isEnabled() {
@@ -93,7 +100,9 @@ public class SenseHatController {
             return;
         }
         try {
-            ledMatrix.draw(icon.createBitmap());
+            final Bitmap iconBitmap = icon.createBitmap();
+            ledMatrix.draw(iconBitmap);
+            iconBitmap.recycle();
         } catch (IOException e) {
             Log.e(TAG, "Error while displaying icon on LED Matrix", e);
         }
