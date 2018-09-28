@@ -89,6 +89,7 @@ public class SenseHatController {
         }
     }
 
+    // TODO: variants with params
     public void displayMessage(final String message) {
         if (!enabled) {
             return;
@@ -96,7 +97,7 @@ public class SenseHatController {
         final LedText msg = new LedText(resources, getTypeface());
         msg.setMessage(message);
         final LedDisplayThread.Job job =
-                new LedDisplayThread.JobBuilder().setFrame(msg.createBitmap()).build();
+                new LedDisplayThread.JobBuilder().withFrame(msg.createBitmap()).build();
         displayThread.queueJob(job);
     }
 
@@ -105,7 +106,21 @@ public class SenseHatController {
             return;
         }
         final LedDisplayThread.Job job =
-                new LedDisplayThread.JobBuilder().setFrame(icon.createBitmap()).build();
+                new LedDisplayThread.JobBuilder().withFrame(icon.createBitmap()).build();
+        displayThread.queueJob(job);
+    }
+
+    public void displayRotatingIcon(final LedIcon icon, final long frameRate, final int rotationOffset) {
+        if (!enabled) {
+            return;
+        }
+        // TODO: Add more configurable params for this
+        final LedDisplayThread.Job job = new LedDisplayThread.JobBuilder()
+                .withFrame(icon.createBitmap())
+                .withFrameRate(frameRate)
+                .withCycles(25)
+                .withRotationOffset(rotationOffset)
+                .build();
         displayThread.queueJob(job);
     }
 

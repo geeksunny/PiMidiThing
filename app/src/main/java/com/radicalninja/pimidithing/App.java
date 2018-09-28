@@ -1,13 +1,9 @@
 package com.radicalninja.pimidithing;
 
 import android.app.Application;
-import android.content.Context;
-import android.hardware.SensorManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
-import com.eon.androidthings.sensehatdriverlibrary.SenseHat;
-import com.eon.androidthings.sensehatdriverlibrary.devices.LedMatrix;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.radicalninja.pimidithing.midi.MidiCore;

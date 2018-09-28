@@ -2,7 +2,6 @@ package com.radicalninja.pimidithing.ui;
 
 import android.graphics.Bitmap;
 import android.graphics.Rect;
-import android.support.annotation.Size;
 import android.util.Log;
 
 import com.eon.androidthings.sensehatdriverlibrary.devices.LedMatrix;
@@ -13,40 +12,102 @@ import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.LockSupport;
 
+import androidx.annotation.IntRange;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.Size;
 
 public class LedDisplayThread extends Thread {
 
-    // TODO: Display rotation should be handled here, scrolling calculations built in.
-
-    public enum Rotation {
-
-        NONE(0),
-        CW1(90),
-        CW2(180),
-        CW3(270),
-        CCW1(270),
-        CCW2(180),
-        CCW3(90);
-
-        private final int value;
-
-        Rotation(final int value) {
-            this.value = value;
-        }
-
-        public int getValue() {
-            return value;
-        }
-
+    public interface JobDirection {
+        int totalIndexes(final int lastIndex);
+        int nextIndex(final int currentIndex, final int lastIndex);
+        int previousIndex(final int currentIndex, final int lastIndex);
     }
 
-    public enum RepeatMode {
-        NONE,
-        LOOP,
-        PINGPONG
-    }
+    public static final JobDirection NONE = new JobDirection() {
+        @Override
+        public int totalIndexes(final int lastIndex) {
+            return 1;
+        }
+
+        @Override
+        public int nextIndex(final int currentIndex, final int lastIndex) {
+            return currentIndex;
+        }
+
+        @Override
+        public int previousIndex(final int currentIndex, final int lastIndex) {
+            return currentIndex;
+        }
+    };
+
+    public static final JobDirection FORWARD = new JobDirection() {
+        @Override
+        public int totalIndexes(final int lastIndex) {
+            return lastIndex + 1;
+        }
+
+        @Override
+        public int nextIndex(final int currentIndex, final int lastIndex) {
+            return (currentIndex == lastIndex) ? 0 : currentIndex + 1;
+        }
+
+        @Override
+        public int previousIndex(final int currentIndex, final int lastIndex) {
+            return (currentIndex == 0) ? lastIndex : currentIndex - 1;
+        }
+    };
+
+    public static final JobDirection REVERSE = new JobDirection() {
+        @Override
+        public int totalIndexes(final int lastIndex) {
+            return lastIndex + 1;
+        }
+
+        @Override
+        public int nextIndex(final int currentIndex, final int lastIndex) {
+            return (currentIndex == 0) ? lastIndex : currentIndex - 1;
+        }
+
+        @Override
+        public int previousIndex(final int currentIndex, final int lastIndex) {
+            return (currentIndex == lastIndex) ? 0 : currentIndex + 1;
+        }
+    };
+
+    public static final JobDirection PINGPONG = new JobDirection() {
+        @Override
+        public int totalIndexes(final int lastIndex) {
+            return lastIndex * 2;
+        }
+
+        @Override
+        public int nextIndex(final int currentIndex, final int lastIndex) {
+            // TODO: How to maintain direction here?
+            if (currentIndex == lastIndex) {
+
+            } else if (currentIndex == 0) {
+
+            } else {
+
+            }
+            return 0;
+        }
+
+        @Override
+        public int previousIndex(final int currentIndex, final int lastIndex) {
+            // TODO: How to maintain direction here?
+            if (currentIndex == lastIndex) {
+
+            } else if (currentIndex == 0) {
+
+            } else {
+
+            }
+            return 0;
+        }
+    };
 
     private static final String TAG = LedDisplayThread.class.getCanonicalName();
 
@@ -55,17 +116,16 @@ public class LedDisplayThread extends Thread {
 
     private boolean parked = false;
     private Job currentJob;
-    private Rotation rotation = Rotation.NONE;
 
     public LedDisplayThread(@NonNull final LedMatrix ledMatrix) {
         this.ledMatrix = ledMatrix;
     }
 
-    public LedDisplayThread(@NonNull final LedMatrix ledMatrix, @Nullable final Rotation rotation) {
+    public LedDisplayThread(@NonNull final LedMatrix ledMatrix,
+                            @IntRange(from = -3, to = 3) final int rotations) {
+
         this.ledMatrix = ledMatrix;
-        if (null != rotation) {
-            this.rotation = rotation;
-        }
+        this.ledMatrix.setRotation(rotations);
     }
 
     protected void park() throws InterruptedException {
@@ -246,11 +306,58 @@ public class LedDisplayThread extends Thread {
         }
     }
 
+    public static class JobDirectionHandler {
+
+        private final JobDirection jobDirection;
+
+        private boolean looping;
+        private boolean shuffled;
+
+        public JobDirectionHandler(@NonNull final JobDirection jobDirection,
+                                   final boolean looping,
+                                   final boolean shuffled) {
+
+            if (null == jobDirection) {
+                throw new IllegalArgumentException("JobDirection must not be null.");
+            }
+            this.jobDirection = jobDirection;
+            this.looping = looping;
+            this.shuffled = shuffled;
+        }
+
+        public int totalIndexes(final int lastIndex) {
+            return jobDirection.totalIndexes(lastIndex);
+        }
+
+        public int nextIndex(final int currentIndex, final int lastIndex) {
+            return jobDirection.nextIndex(currentIndex, lastIndex);
+        }
+
+        public int previousIndex(final int currentIndex, final int lastIndex) {
+            return jobDirection.previousIndex(currentIndex, lastIndex);
+        }
+
+        public boolean isLooping() {
+            return looping;
+        }
+
+        public void setLooping(final boolean looping) {
+            this.looping = looping;
+        }
+
+        public boolean isShuffled() {
+            return shuffled;
+        }
+
+        public void setShuffled(final boolean shuffled) {
+            this.shuffled = shuffled;
+        }
+
+    }
+
     public static class Job {
 
-        // TODO: Should a Rotation value be provided? Could be changed with each frame as a "rotating job"
-
-        // TODO: RepeatMode logic to be included with cycles and duration monitoring. Can allow us to remove the *Previous* methods?
+        // TODO: JobDirection logic to be included with cycles and duration monitoring. Can allow us to remove the *Previous* methods?
 
         private final Bitmap[] frames;
         private final long frameRate;
@@ -258,7 +365,7 @@ public class LedDisplayThread extends Thread {
         private final long minDuration;
         private final long maxDuration;
         private final int rotationOffset;
-        private final RepeatMode repeatMode;
+        private final JobDirectionHandler jobDirectionHandler;
 
         private int i = 0;
         private int cycle = 0;
@@ -276,7 +383,7 @@ public class LedDisplayThread extends Thread {
                     final long maxDuration,
                     final int startingRotation,
                     final int rotationOffset,
-                    final RepeatMode repeatMode) {
+                    final JobDirectionHandler jobDirectionHandler) {
 
             this.frames = frames;
             this.frameRate = frameRate;
@@ -285,7 +392,7 @@ public class LedDisplayThread extends Thread {
             this.maxDuration = maxDuration;
             this.currentRotation = startingRotation;
             this.rotationOffset = rotationOffset;
-            this.repeatMode = repeatMode;
+            this.jobDirectionHandler = jobDirectionHandler;
         }
 
         void recycle() {
@@ -305,6 +412,10 @@ public class LedDisplayThread extends Thread {
 
         boolean needsScrolling() {
             return getCurrentFrame().getWidth() > LedMatrix.WIDTH && frameRate > 0;
+        }
+
+        boolean needsRotation() {
+            return rotationOffset != 0;
         }
 
         void pause() {
@@ -339,13 +450,17 @@ public class LedDisplayThread extends Thread {
         }
 
         boolean hasNextScroll() {
-            // TODO: consider RepeatMode here
+            // TODO: consider JobDirection here
             return false;
         }
 
         boolean hasPreviousScroll() {
             // TODO
             return false;
+        }
+
+        int getCurrentRotation() {
+            return currentRotation;
         }
 
         @Nullable
@@ -357,12 +472,14 @@ public class LedDisplayThread extends Thread {
         @Nullable
         Rect getNextScroll() {
             // TODO
+            // move rotation forward
             return null;
         }
 
         @Nullable
         Rect getPreviousScroll() {
             // TODO
+            // move rotation backward
             return null;
         }
 
@@ -393,6 +510,7 @@ public class LedDisplayThread extends Thread {
 
         @Nullable
         Bitmap getNextFrame() {
+            // move rotation forward
             // TODO: rely on isExpired + isPaused for these?
             if (!paused && cycles > 0 && cycle < cycles) {
                 // current frame = i % cycles ?
@@ -407,6 +525,7 @@ public class LedDisplayThread extends Thread {
         @Nullable
         Bitmap getPreviousFrame() {
             // TODO: reverse the iterator
+            // move rotation backward
             return null;
         }
 
@@ -431,9 +550,11 @@ public class LedDisplayThread extends Thread {
         private long maxDuration = 0;
         private int startingRotation = 0;
         private int rotationOffset = 0;
-        private RepeatMode repeatMode = RepeatMode.LOOP;
+        private JobDirection jobDirection = FORWARD;
+        private boolean loopingEnabled = true;
+        private boolean shuffledEnabled = false;
 
-        public JobBuilder setFrame(@NonNull final Bitmap frame) {
+        public JobBuilder withFrame(@NonNull final Bitmap frame) {
             if (null == frame) {
                 throw new IllegalArgumentException("Frame must not be null.");
             }
@@ -441,7 +562,7 @@ public class LedDisplayThread extends Thread {
             return this;
         }
 
-        public JobBuilder setFrames(@NonNull @Size(min=1) final Bitmap[] frames) {
+        public JobBuilder withFrames(@NonNull @Size(min=1) final Bitmap[] frames) {
             if (null == frames) {
                 throw new IllegalArgumentException("Frames must not be null.");
             } else if (frames.length == 0) {
@@ -456,7 +577,7 @@ public class LedDisplayThread extends Thread {
             return this;
         }
 
-        public JobBuilder setFrameRate(final long frameRate) {
+        public JobBuilder withFrameRate(final long frameRate) {
             if (frameRate < 0) {
                 throw new IllegalArgumentException("Frame rate must be zero or more.");
             }
@@ -464,7 +585,7 @@ public class LedDisplayThread extends Thread {
             return this;
         }
 
-        public JobBuilder setCycles(final int cycles) {
+        public JobBuilder withCycles(final int cycles) {
             if (cycles < 0) {
                 throw new IllegalArgumentException("Cycle count must be zero or more.");
             }
@@ -472,7 +593,7 @@ public class LedDisplayThread extends Thread {
             return this;
         }
 
-        public JobBuilder setMinDuration(final long minDuration) {
+        public JobBuilder withMinDuration(final long minDuration) {
             if (minDuration < 0) {
                 throw new IllegalArgumentException("Min duration must be zero or more.");
             }
@@ -481,7 +602,7 @@ public class LedDisplayThread extends Thread {
             return this;
         }
 
-        public JobBuilder setMaxDuration(final long maxDuration) {
+        public JobBuilder withMaxDuration(final long maxDuration) {
             if (maxDuration < 0) {
                 throw new IllegalArgumentException("Max duration must be zero or more.");
             }
@@ -489,21 +610,31 @@ public class LedDisplayThread extends Thread {
             return this;
         }
 
-        public JobBuilder setStartingRotation(final int startingRotation) {
+        public JobBuilder withStartingRotation(final int startingRotation) {
             this.startingRotation = startingRotation;
             return this;
         }
 
-        public JobBuilder setRotationOffset(final int rotationOffset) {
+        public JobBuilder withRotationOffset(final int rotationOffset) {
             this.rotationOffset = rotationOffset;
             return this;
         }
 
-        public JobBuilder setRepeatMode(final RepeatMode repeatMode) {
-            if (null == repeatMode) {
-                throw new IllegalArgumentException("Repeat mode must not be null.");
+        public JobBuilder withJobDirection(final JobDirection jobDirection) {
+            if (null == jobDirection) {
+                throw new IllegalArgumentException("Job direction must not be null.");
             }
-            this.repeatMode = repeatMode;
+            this.jobDirection = jobDirection;
+            return this;
+        }
+
+        public JobBuilder withLoopingEnabled(final boolean loopingEnabled) {
+            this.loopingEnabled = loopingEnabled;
+            return this;
+        }
+
+        public JobBuilder withShuffledEnabled(final boolean shuffledEnabled) {
+            this.shuffledEnabled = shuffledEnabled;
             return this;
         }
 
@@ -512,8 +643,10 @@ public class LedDisplayThread extends Thread {
             if (null == frames) {
                 throw new IllegalArgumentException("Frames are not set!");
             }
+            final JobDirectionHandler jobDirectionHandler =
+                    new JobDirectionHandler(jobDirection, loopingEnabled, shuffledEnabled);
             return new Job(frames, frameRate, cycles, minDuration, maxDuration,
-                    startingRotation, rotationOffset, repeatMode);
+                    startingRotation, rotationOffset, jobDirectionHandler);
         }
 
     }
