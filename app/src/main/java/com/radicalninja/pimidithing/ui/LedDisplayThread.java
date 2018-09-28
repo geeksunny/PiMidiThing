@@ -22,7 +22,6 @@ public class LedDisplayThread extends Thread {
     public interface JobDirection {
         int totalIndexes(final int lastIndex);
         int nextIndex(final int currentIndex, final int lastIndex);
-        int previousIndex(final int currentIndex, final int lastIndex);
     }
 
     public static final JobDirection NONE = new JobDirection() {
@@ -33,11 +32,6 @@ public class LedDisplayThread extends Thread {
 
         @Override
         public int nextIndex(final int currentIndex, final int lastIndex) {
-            return currentIndex;
-        }
-
-        @Override
-        public int previousIndex(final int currentIndex, final int lastIndex) {
             return currentIndex;
         }
     };
@@ -52,11 +46,6 @@ public class LedDisplayThread extends Thread {
         public int nextIndex(final int currentIndex, final int lastIndex) {
             return (currentIndex == lastIndex) ? 0 : currentIndex + 1;
         }
-
-        @Override
-        public int previousIndex(final int currentIndex, final int lastIndex) {
-            return (currentIndex == 0) ? lastIndex : currentIndex - 1;
-        }
     };
 
     public static final JobDirection REVERSE = new JobDirection() {
@@ -69,11 +58,6 @@ public class LedDisplayThread extends Thread {
         public int nextIndex(final int currentIndex, final int lastIndex) {
             return (currentIndex == 0) ? lastIndex : currentIndex - 1;
         }
-
-        @Override
-        public int previousIndex(final int currentIndex, final int lastIndex) {
-            return (currentIndex == lastIndex) ? 0 : currentIndex + 1;
-        }
     };
 
     public static final JobDirection PINGPONG = new JobDirection() {
@@ -84,19 +68,6 @@ public class LedDisplayThread extends Thread {
 
         @Override
         public int nextIndex(final int currentIndex, final int lastIndex) {
-            // TODO: How to maintain direction here?
-            if (currentIndex == lastIndex) {
-
-            } else if (currentIndex == 0) {
-
-            } else {
-
-            }
-            return 0;
-        }
-
-        @Override
-        public int previousIndex(final int currentIndex, final int lastIndex) {
             // TODO: How to maintain direction here?
             if (currentIndex == lastIndex) {
 
@@ -333,10 +304,6 @@ public class LedDisplayThread extends Thread {
             return jobDirection.nextIndex(currentIndex, lastIndex);
         }
 
-        public int previousIndex(final int currentIndex, final int lastIndex) {
-            return jobDirection.previousIndex(currentIndex, lastIndex);
-        }
-
         public boolean isLooping() {
             return looping;
         }
@@ -357,17 +324,20 @@ public class LedDisplayThread extends Thread {
 
     public static class Job {
 
-        // TODO: JobDirection logic to be included with cycles and duration monitoring. Can allow us to remove the *Previous* methods?
+        // TODO: increment cycle count somewhere in the scroll / frame logic
 
         private final Bitmap[] frames;
         private final long frameRate;
+        private final int scrollRate;
         private final int cycles;
         private final long minDuration;
         private final long maxDuration;
         private final int rotationOffset;
-        private final JobDirectionHandler jobDirectionHandler;
+        private final JobDirectionHandler directionHandler;
 
-        private int i = 0;
+        private int frameIndex = -1;
+        private int scrollIndex = -1;
+        private int scrollCount = 0;
         private int cycle = 0;
         private int frame = 0;
         private boolean paused = false;
@@ -378,21 +348,23 @@ public class LedDisplayThread extends Thread {
 
         private Job(final Bitmap[] frames,
                     final long frameRate,
+                    final int scrollRate,
                     final int cycles,
                     final long minDuration,
                     final long maxDuration,
                     final int startingRotation,
                     final int rotationOffset,
-                    final JobDirectionHandler jobDirectionHandler) {
+                    final JobDirectionHandler directionHandler) {
 
             this.frames = frames;
             this.frameRate = frameRate;
+            this.scrollRate = scrollRate;
             this.cycles = cycles;
             this.minDuration = minDuration;
             this.maxDuration = maxDuration;
             this.currentRotation = startingRotation;
             this.rotationOffset = rotationOffset;
-            this.jobDirectionHandler = jobDirectionHandler;
+            this.directionHandler = directionHandler;
         }
 
         void recycle() {
@@ -449,58 +421,37 @@ public class LedDisplayThread extends Thread {
             return false;
         }
 
-        boolean hasNextScroll() {
-            // TODO: consider JobDirection here
-            return false;
-        }
-
-        boolean hasPreviousScroll() {
-            // TODO
-            return false;
-        }
-
         int getCurrentRotation() {
             return currentRotation;
         }
 
+        boolean hasNextScroll() {
+            return scrollIndex < scrollCount;
+        }
+
         @Nullable
         Rect getCurrentScroll() {
-            // TODO
+            // TODO: create a rect based on scrollIndex
             return null;
         }
 
         @Nullable
         Rect getNextScroll() {
-            // TODO
-            // move rotation forward
-            return null;
-        }
-
-        @Nullable
-        Rect getPreviousScroll() {
-            // TODO
-            // move rotation backward
+            scrollIndex = directionHandler.nextIndex(scrollIndex, scrollCount);
+            // TODO: move rotation forward... right? Or should this be a separate setting?
             return null;
         }
 
         boolean isFirstScroll() {
-            // todo
-            return false;
+            return scrollIndex == 0;
         }
 
         boolean isLastScroll() {
-            // todo
-            return false;
+            return scrollIndex == scrollCount;
         }
 
         boolean hasNextFrame() {
-            // TODO
-            return false;
-        }
-
-        boolean hasPreviousFrame() {
-            // TODO
-            return false;
+            return frameIndex < frames.length;
         }
 
         @NonNull
@@ -510,33 +461,20 @@ public class LedDisplayThread extends Thread {
 
         @Nullable
         Bitmap getNextFrame() {
-            // move rotation forward
-            // TODO: rely on isExpired + isPaused for these?
-            if (!paused && cycles > 0 && cycle < cycles) {
-                // current frame = i % cycles ?
-                // return current frame.
-                return null;
-            } else {
-                // Nothing to do here.
-                return null;
-            }
-        }
-
-        @Nullable
-        Bitmap getPreviousFrame() {
-            // TODO: reverse the iterator
-            // move rotation backward
-            return null;
+            frameIndex = directionHandler.nextIndex(frameIndex, frames.length);
+            // TODO: calculate scrollCount by way of current frame width against scrollRate, account for edge to edge display
+            scrollCount = 0;    // TODO: CALCULATE HERE
+            scrollIndex = 0;
+            // TODO: move rotation forward
+            return frames[frameIndex];
         }
 
         boolean isFirstFrame() {
-            // todo
-            return false;
+            return frameIndex == 0;
         }
 
         boolean isLastFrame() {
-            // todo
-            return false;
+            return frameIndex == frames.length - 1;
         }
 
     }
@@ -545,6 +483,7 @@ public class LedDisplayThread extends Thread {
 
         private Bitmap[] frames;
         private long frameRate = 100;
+        private int scrollRate = 1;
         private int cycles = 0;
         private long minDuration = 0;
         private long maxDuration = 0;
@@ -582,6 +521,14 @@ public class LedDisplayThread extends Thread {
                 throw new IllegalArgumentException("Frame rate must be zero or more.");
             }
             this.frameRate = frameRate;
+            return this;
+        }
+
+        public JobBuilder withScrollRate(final int scrollRate) {
+            if (scrollRate < 1) {
+                throw new IllegalArgumentException("Scroll rate must be one or more.");
+            }
+            this.scrollRate = scrollRate;
             return this;
         }
 
@@ -645,7 +592,7 @@ public class LedDisplayThread extends Thread {
             }
             final JobDirectionHandler jobDirectionHandler =
                     new JobDirectionHandler(jobDirection, loopingEnabled, shuffledEnabled);
-            return new Job(frames, frameRate, cycles, minDuration, maxDuration,
+            return new Job(frames, frameRate, scrollRate, cycles, minDuration, maxDuration,
                     startingRotation, rotationOffset, jobDirectionHandler);
         }
 
