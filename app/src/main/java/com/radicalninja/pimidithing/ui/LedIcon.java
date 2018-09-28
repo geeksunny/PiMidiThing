@@ -22,6 +22,9 @@ import androidx.annotation.Size;
 
 public class LedIcon extends LedDrawable {
 
+    // For best results, icon drawables should be 64x64 with each 8x8 range accounting for each LED in the matrix.
+    //      Use a non-black color to allow for a default icon color.
+
     @NonNull
     public static Bitmap createIconBitmap(@NonNull final Resources resources,
                                           @DrawableRes final int iconDrawable,
@@ -98,42 +101,6 @@ public class LedIcon extends LedDrawable {
 
     public List<Layer> getLayers() {
         return new ArrayList<>(layers);
-    }
-
-    @NonNull
-    @Size(value=4)
-    public Bitmap[] animateRotation() {
-        return animateRotation(true);
-    }
-
-    @NonNull
-    @Size(value=4)
-    public Bitmap[] animateRotation(final boolean clockWise) {
-        final Bitmap[] result = new Bitmap[4];
-        final Bitmap bitmap = createBitmap();
-        result[0] = bitmap;
-
-        final int rotateStart, rotateEnd, rotateOffset;
-        if (clockWise) {
-            rotateStart = 90;
-            rotateEnd = 270;
-            rotateOffset = 90;
-        } else {
-            rotateStart = 270;
-            rotateEnd = 90;
-            rotateOffset = -90;
-        }
-
-        final Matrix matrix = new Matrix();
-        int frame = 1;
-        for (int rotate = rotateStart; rotate != (rotateEnd + rotateOffset); rotate += rotateOffset) {
-            matrix.postRotate(rotate);
-            // TODO: verify if filter=true would make a difference with these small 8x8 tiles
-            result[frame++] = Bitmap.createBitmap(
-                    bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, false);
-        }
-
-        return result;
     }
 
     public static class Layer {
