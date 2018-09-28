@@ -61,22 +61,29 @@ public class LedDisplayThread extends Thread {
     };
 
     public static final JobDirection PINGPONG = new JobDirection() {
+        private int offset = 1;
+
         @Override
         public int totalIndexes(final int lastIndex) {
-            return lastIndex * 2;
+            offset = 1;
+            return (lastIndex + 1) * 2;
         }
 
         @Override
         public int nextIndex(final int currentIndex, final int lastIndex) {
-            // TODO: How to maintain direction here?
-            if (currentIndex == lastIndex) {
-
-            } else if (currentIndex == 0) {
-
-            } else {
-
+            if (lastIndex == 0) {
+                return currentIndex;
             }
-            return 0;
+            final int nextIndex = currentIndex + offset;
+            if (nextIndex > lastIndex) {
+                offset = -1;
+                return currentIndex - 1;
+            } else if (nextIndex < 0) {
+                offset = 1;
+                return 1;
+            } else {
+                return nextIndex;
+            }
         }
     };
 
@@ -281,6 +288,7 @@ public class LedDisplayThread extends Thread {
 
         private final JobDirection jobDirection;
 
+        // TODO: Implement logic for looping / shuffled indexes
         private boolean looping;
         private boolean shuffled;
 
@@ -325,6 +333,8 @@ public class LedDisplayThread extends Thread {
     public static class Job {
 
         // TODO: increment cycle count somewhere in the scroll / frame logic
+        // TODO: implement support for vertical scrolling
+        // TODO: Should there be rotation implemented for scrolling frames?
 
         private final Bitmap[] frames;
         private final long frameRate;
@@ -377,13 +387,8 @@ public class LedDisplayThread extends Thread {
             return (frameRate > 0) ? frameRate : minDuration;
         }
 
-        // TODO: Is this method necessary?
-        boolean needsAnimation() {
-            return frames.length > 1 && frameRate > 0;
-        }
-
         boolean needsScrolling() {
-            return getCurrentFrame().getWidth() > LedMatrix.WIDTH && frameRate > 0;
+            return frames[frameIndex].getWidth() > LedMatrix.WIDTH && frameRate > 0;
         }
 
         boolean needsRotation() {
@@ -429,21 +434,11 @@ public class LedDisplayThread extends Thread {
             return scrollIndex < scrollCount;
         }
 
-        @Nullable
-        Rect getCurrentScroll() {
-            // TODO: create a rect based on scrollIndex
-            return null;
-        }
-
-        @Nullable
+        @NonNull
         Rect getNextScroll() {
             scrollIndex = directionHandler.nextIndex(scrollIndex, scrollCount);
-            // TODO: move rotation forward... right? Or should this be a separate setting?
+            // TODO!!
             return null;
-        }
-
-        boolean isFirstScroll() {
-            return scrollIndex == 0;
         }
 
         boolean isLastScroll() {
@@ -456,17 +451,23 @@ public class LedDisplayThread extends Thread {
 
         @NonNull
         Bitmap getCurrentFrame() {
+            // TODO: Is this method necessary?
             return frames[frame];
         }
 
-        @Nullable
+        @NonNull
         Bitmap getNextFrame() {
             frameIndex = directionHandler.nextIndex(frameIndex, frames.length);
-            // TODO: calculate scrollCount by way of current frame width against scrollRate, account for edge to edge display
-            scrollCount = 0;    // TODO: CALCULATE HERE
+            final Bitmap frame = frames[frameIndex];
+            if (needsScrolling()) {
+                final int width = frame.getWidth();
+                scrollCount = (width / scrollRate) + ((width % scrollRate > 0) ? 1 : 0);
+            } else {
+                scrollCount = 0;
+            }
             scrollIndex = 0;
             // TODO: move rotation forward
-            return frames[frameIndex];
+            return frame;
         }
 
         boolean isFirstFrame() {
