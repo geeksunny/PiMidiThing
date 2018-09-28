@@ -9,6 +9,8 @@ import android.util.Log;
 
 import com.eon.androidthings.sensehatdriverlibrary.SenseHat;
 import com.eon.androidthings.sensehatdriverlibrary.devices.LedMatrix;
+import com.radicalninja.pimidithing.ui.display.Job;
+import com.radicalninja.pimidithing.ui.display.LedDisplayThread;
 
 import java.io.IOException;
 
@@ -96,8 +98,8 @@ public class SenseHatController {
         }
         final LedText msg = new LedText(resources, getTypeface());
         msg.setMessage(message);
-        final LedDisplayThread.Job job =
-                new LedDisplayThread.JobBuilder().withFrame(msg.createBitmap()).build();
+        final Job job =
+                new Job.Builder().withFrame(msg.createBitmap()).build();
         displayThread.queueJob(job);
     }
 
@@ -105,8 +107,8 @@ public class SenseHatController {
         if (!enabled) {
             return;
         }
-        final LedDisplayThread.Job job =
-                new LedDisplayThread.JobBuilder().withFrame(icon.createBitmap()).build();
+        final Job job =
+                new Job.Builder().withFrame(icon.createBitmap()).build();
         displayThread.queueJob(job);
     }
 
@@ -115,7 +117,7 @@ public class SenseHatController {
             return;
         }
         // TODO: Add more configurable params for this
-        final LedDisplayThread.Job job = new LedDisplayThread.JobBuilder()
+        final Job job = new Job.Builder()
                 .withFrame(icon.createBitmap())
                 .withFrameRate(frameRate)
                 .withCycles(25)
