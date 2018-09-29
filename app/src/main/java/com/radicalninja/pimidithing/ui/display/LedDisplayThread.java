@@ -175,6 +175,7 @@ public class LedDisplayThread extends Thread {
 
     @Override
     public void run() {
+        // TODO: See about a better condition than "while (true)" ... Is there any condition that would shut down this thread?
         while (true) {
             if (jobs.peek() == null) {
                 Log.d(TAG, "Job queue is empty; Parking thread.");
@@ -190,23 +191,19 @@ public class LedDisplayThread extends Thread {
             if (null == currentJob) {
                 continue;
             }
-            while (currentJob.hasNextFrame() && !currentJob.isExpired()) {
+            ledMatrix.setRotation(currentJob.getCurrentRotation());
+            while (currentJob.hasNextFrame() && currentJob.isAlive()) {
                 final Bitmap currentFrame = currentJob.getNextFrame();
-                if (null == currentFrame) {
-                    // No frame retrieved.
-                    // TODO: How do we handle this?
-                } else if (currentJob.needsScrolling()) {
-                    while (currentJob.hasNextScroll() && !currentJob.isExpired()) {
+                if (currentJob.needsScrolling()) {
+                    while (currentJob.hasNextScroll() && currentJob.isAlive()) {
                         final Rect scroll = currentJob.getNextScroll();
-                        if (null == scroll) {
-                            // No scroll retrieved.
-                            // TODO: How do we handle this?
-                        } else {
-                            draw(currentFrame, scroll, currentJob.getSleepDuration());
-                        }
+                        draw(currentFrame, scroll, currentJob.getSleepDuration());
                     }
                 } else {
                     draw(currentFrame, null, currentJob.getSleepDuration());
+                    if (currentJob.needsRotation()) {
+                        ledMatrix.setRotation(currentJob.getCurrentRotation());
+                    }
                 }
             }
             currentJob.recycle();

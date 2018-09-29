@@ -1,11 +1,22 @@
 package com.radicalninja.pimidithing.ui.display;
 
+/**
+ * Predefined JobDirection handlers.
+ */
 public class JobDirections {
 
+    /**
+     * No job movement will take place.
+     */
     public static final JobDirection NONE = new JobDirection() {
         @Override
         public int totalIndexes(final int lastIndex) {
             return 1;
+        }
+
+        @Override
+        public int getStepLength() {
+            return 0;
         }
 
         @Override
@@ -14,10 +25,18 @@ public class JobDirections {
         }
     };
 
+    /**
+     * Default JobDirection. Job steps move forward.
+     */
     public static final JobDirection FORWARD = new JobDirection() {
         @Override
         public int totalIndexes(final int lastIndex) {
             return lastIndex + 1;
+        }
+
+        @Override
+        public int getStepLength() {
+            return 1;
         }
 
         @Override
@@ -26,10 +45,18 @@ public class JobDirections {
         }
     };
 
+    /**
+     * Job steps will move backwards in reverse order.
+     */
     public static final JobDirection REVERSE = new JobDirection() {
         @Override
         public int totalIndexes(final int lastIndex) {
             return lastIndex + 1;
+        }
+
+        @Override
+        public int getStepLength() {
+            return -1;
         }
 
         @Override
@@ -38,6 +65,9 @@ public class JobDirections {
         }
     };
 
+    /**
+     * Job steps move forward. When the job hits the end, it will reverse direction.
+     */
     public static final JobDirection PINGPONG = new JobDirection() {
         private int offset = 1;
 
@@ -45,6 +75,11 @@ public class JobDirections {
         public int totalIndexes(final int lastIndex) {
             offset = 1;
             return (lastIndex + 1) * 2;
+        }
+
+        @Override
+        public int getStepLength() {
+            return offset;
         }
 
         @Override

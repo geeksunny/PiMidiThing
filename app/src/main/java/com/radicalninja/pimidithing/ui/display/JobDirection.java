@@ -14,6 +14,12 @@ public interface JobDirection {
 
     /**
      * TODO
+     * @return
+     */
+    int getStepLength();
+
+    /**
+     * TODO
      * @param currentIndex
      * @param lastIndex
      * @return

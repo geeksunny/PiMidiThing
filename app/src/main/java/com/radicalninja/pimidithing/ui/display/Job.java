@@ -2,6 +2,7 @@ package com.radicalninja.pimidithing.ui.display;
 
 import android.graphics.Bitmap;
 import android.graphics.Rect;
+import android.os.SystemClock;
 
 import com.eon.androidthings.sensehatdriverlibrary.devices.LedMatrix;
 
@@ -12,49 +13,33 @@ import androidx.annotation.Size;
 
 public class Job {
 
-    // TODO: increment cycle count somewhere in the scroll / frame logic
     // TODO: implement support for vertical scrolling
     // TODO: Should there be rotation implemented for scrolling frames?
 
     private final Bitmap[] frames;
     private final long frameRate;
-    private final int scrollRate;
-    private final int cycles;
-    private final long minDuration;
     private final long maxDuration;
     private final int rotationOffset;
-    private final JobDirectionHandler directionHandler;
+    private final JobCycler jobCycler;
 
-    private int frameIndex = -1;
-    private int scrollIndex = -1;
-    private int scrollCount = 0;
-    private int cycle = 0;
-    private int frame = 0;
-    private boolean paused = false;
-    private long startTime = 0;
+    private long expirationTime = 0;
     private boolean stopped = false;
 
     private int currentRotation;
 
     private Job(final Bitmap[] frames,
                 final long frameRate,
-                final int scrollRate,
-                final int cycles,
-                final long minDuration,
                 final long maxDuration,
                 final int startingRotation,
                 final int rotationOffset,
-                final JobDirectionHandler directionHandler) {
+                final JobCycler jobCycler) {
 
         this.frames = frames;
         this.frameRate = frameRate;
-        this.scrollRate = scrollRate;
-        this.cycles = cycles;
-        this.minDuration = minDuration;
         this.maxDuration = maxDuration;
         this.currentRotation = startingRotation;
         this.rotationOffset = rotationOffset;
-        this.directionHandler = directionHandler;
+        this.jobCycler = jobCycler;
     }
 
     void recycle() {
@@ -64,29 +49,15 @@ public class Job {
     }
 
     long getSleepDuration() {
-        return (frameRate > 0) ? frameRate : minDuration;
+        return (frameRate > 0) ? frameRate : maxDuration;
     }
 
     boolean needsScrolling() {
-        return frames[frameIndex].getWidth() > LedMatrix.WIDTH && frameRate > 0;
+        return jobCycler.getScrollCount() > 1;
     }
 
     boolean needsRotation() {
         return rotationOffset != 0;
-    }
-
-    void pause() {
-        this.paused = true;
-    }
-
-    void unpause() {
-        this.paused = false;
-        // TODO: Start job back up? should paused return a null value as frame to signal?
-        // TODO: should maxDuration take into account pausedTime?
-    }
-
-    boolean isPaused() {
-        return paused;
     }
 
     void stop() {
@@ -94,16 +65,19 @@ public class Job {
     }
 
     void start() {
-        // TODO: set startTime for use in isExpired
+        if (expirationTime > 0) {
+            // TODO: log / throw exception?
+            return;
+        }
+        expirationTime = SystemClock.elapsedRealtime() + maxDuration;
     }
 
     boolean isStarted() {
-        return startTime > 0;
+        return expirationTime > 0;
     }
 
-    boolean isExpired() {
-        // TODO: check system clock against duration __AND__ max cycles
-        return false;
+    boolean isAlive() {
+        return !stopped && jobCycler.hasNextCycle() && (SystemClock.elapsedRealtime() < expirationTime);
     }
 
     int getCurrentRotation() {
@@ -111,51 +85,27 @@ public class Job {
     }
 
     boolean hasNextScroll() {
-        return scrollIndex < scrollCount;
+        return jobCycler.hasNextScroll();
     }
 
     @NonNull
     Rect getNextScroll() {
-        scrollIndex = directionHandler.nextIndex(scrollIndex, scrollCount);
+        final int scrollIndex = jobCycler.nextScrollIndex();
         // TODO!!
         return null;
     }
 
-    boolean isLastScroll() {
-        return scrollIndex == scrollCount;
-    }
-
     boolean hasNextFrame() {
-        return frameIndex < frames.length;
-    }
-
-    @NonNull
-    Bitmap getCurrentFrame() {
-        // TODO: Is this method necessary?
-        return frames[frame];
+        return jobCycler.hasNextFrame();
     }
 
     @NonNull
     Bitmap getNextFrame() {
-        frameIndex = directionHandler.nextIndex(frameIndex, frames.length);
+        final int frameIndex = jobCycler.nextFrameIndex();
         final Bitmap frame = frames[frameIndex];
-        if (needsScrolling()) {
-            final int width = frame.getWidth();
-            scrollCount = (width / scrollRate) + ((width % scrollRate > 0) ? 1 : 0);
-        } else {
-            scrollCount = 0;
-        }
-        scrollIndex = 0;
-        // TODO: move rotation forward
+        jobCycler.initScroll(frame);
+        currentRotation = jobCycler.nextValue(currentRotation, rotationOffset);
         return frame;
-    }
-
-    boolean isFirstFrame() {
-        return frameIndex == 0;
-    }
-
-    boolean isLastFrame() {
-        return frameIndex == frames.length - 1;
     }
 
     public static class Builder {
@@ -164,7 +114,6 @@ public class Job {
         private long frameRate = 100;
         private int scrollRate = 1;
         private int cycles = 0;
-        private long minDuration = 0;
         private long maxDuration = 0;
         private int startingRotation = 0;
         private int rotationOffset = 0;
@@ -219,15 +168,6 @@ public class Job {
             return this;
         }
 
-        public Builder withMinDuration(final long minDuration) {
-            if (minDuration < 0) {
-                throw new IllegalArgumentException("Min duration must be zero or more.");
-            }
-            // TODO: Should we check against / raise a lower maxDuration up to minDuration value here?
-            this.minDuration = minDuration;
-            return this;
-        }
-
         public Builder withMaxDuration(final long maxDuration) {
             if (maxDuration < 0) {
                 throw new IllegalArgumentException("Max duration must be zero or more.");
@@ -269,10 +209,10 @@ public class Job {
             if (null == frames) {
                 throw new IllegalArgumentException("Frames are not set!");
             }
-            final JobDirectionHandler jobDirectionHandler =
-                    new JobDirectionHandler(jobDirection, loopingEnabled, shuffledEnabled);
-            return new Job(frames, frameRate, scrollRate, cycles, minDuration, maxDuration,
-                    startingRotation, rotationOffset, jobDirectionHandler);
+            final JobCycler jobCycler = new JobCycler(
+                    frames.length, cycles, scrollRate, jobDirection, loopingEnabled, shuffledEnabled);
+            return new Job(frames, frameRate, maxDuration,
+                    startingRotation, rotationOffset, jobCycler);
         }
 
     }
