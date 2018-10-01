@@ -14,7 +14,7 @@ import androidx.annotation.Size;
 public class Job {
 
     // TODO: implement support for vertical scrolling
-    // TODO: Should there be rotation implemented for scrolling frames?
+    // TODO: Should there be rotationOffset implemented for scrolling frames?
 
     private final Bitmap[] frames;
     private final long frameRate;
@@ -90,9 +90,9 @@ public class Job {
 
     @NonNull
     Rect getNextScroll() {
-        final int scrollIndex = jobCycler.nextScrollIndex();
-        // TODO!!
-        return null;
+        // Currently, only horizontal scrolling is supported.
+        final int offset = jobCycler.getNextScrollOffset();
+        return new Rect(offset, 0, LedMatrix.WIDTH, LedMatrix.HEIGHT);
     }
 
     boolean hasNextFrame() {
@@ -101,7 +101,7 @@ public class Job {
 
     @NonNull
     Bitmap getNextFrame() {
-        final int frameIndex = jobCycler.nextFrameIndex();
+        final int frameIndex = jobCycler.getNextFrameIndex();
         final Bitmap frame = frames[frameIndex];
         jobCycler.initScroll(frame);
         currentRotation = jobCycler.nextValue(currentRotation, rotationOffset);
@@ -118,7 +118,6 @@ public class Job {
         private int startingRotation = 0;
         private int rotationOffset = 0;
         private JobDirection jobDirection = JobDirections.FORWARD;
-        private boolean loopingEnabled = true;
         private boolean shuffledEnabled = false;
 
         public Builder withFrame(@NonNull final Bitmap frame) {
@@ -194,11 +193,6 @@ public class Job {
             return this;
         }
 
-        public Builder withLoopingEnabled(final boolean loopingEnabled) {
-            this.loopingEnabled = loopingEnabled;
-            return this;
-        }
-
         public Builder withShuffledEnabled(final boolean shuffledEnabled) {
             this.shuffledEnabled = shuffledEnabled;
             return this;
@@ -210,9 +204,9 @@ public class Job {
                 throw new IllegalArgumentException("Frames are not set!");
             }
             final JobCycler jobCycler = new JobCycler(
-                    frames.length, cycles, scrollRate, jobDirection, loopingEnabled, shuffledEnabled);
-            return new Job(frames, frameRate, maxDuration,
-                    startingRotation, rotationOffset, jobCycler);
+                    frames.length, cycles, scrollRate, jobDirection, shuffledEnabled);
+            return new Job(
+                    frames, frameRate, maxDuration, startingRotation, rotationOffset, jobCycler);
         }
 
     }

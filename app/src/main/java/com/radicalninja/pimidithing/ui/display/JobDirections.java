@@ -3,6 +3,7 @@ package com.radicalninja.pimidithing.ui.display;
 /**
  * Predefined JobDirection handlers.
  */
+@SuppressWarnings("WeakerAccess")
 public class JobDirections {
 
     /**
@@ -10,8 +11,13 @@ public class JobDirections {
      */
     public static final JobDirection NONE = new JobDirection() {
         @Override
-        public int totalIndexes(final int lastIndex) {
+        public int getCycleLength(final int itemCount) {
             return 1;
+        }
+
+        @Override
+        public int getFirstIndex(final int itemCount) {
+            return 0;
         }
 
         @Override
@@ -20,7 +26,7 @@ public class JobDirections {
         }
 
         @Override
-        public int nextIndex(final int currentIndex, final int lastIndex) {
+        public int nextIndex(final int currentIndex, final int itemCount) {
             return currentIndex;
         }
     };
@@ -30,8 +36,13 @@ public class JobDirections {
      */
     public static final JobDirection FORWARD = new JobDirection() {
         @Override
-        public int totalIndexes(final int lastIndex) {
-            return lastIndex + 1;
+        public int getCycleLength(final int itemCount) {
+            return itemCount;
+        }
+
+        @Override
+        public int getFirstIndex(final int itemCount) {
+            return 0;
         }
 
         @Override
@@ -40,8 +51,8 @@ public class JobDirections {
         }
 
         @Override
-        public int nextIndex(final int currentIndex, final int lastIndex) {
-            return (currentIndex == lastIndex) ? 0 : currentIndex + 1;
+        public int nextIndex(final int currentIndex, final int itemCount) {
+            return (currentIndex == itemCount) ? 0 : currentIndex + 1;
         }
     };
 
@@ -50,8 +61,13 @@ public class JobDirections {
      */
     public static final JobDirection REVERSE = new JobDirection() {
         @Override
-        public int totalIndexes(final int lastIndex) {
-            return lastIndex + 1;
+        public int getCycleLength(final int itemCount) {
+            return itemCount;
+        }
+
+        @Override
+        public int getFirstIndex(final int itemCount) {
+            return itemCount - 1;
         }
 
         @Override
@@ -60,8 +76,8 @@ public class JobDirections {
         }
 
         @Override
-        public int nextIndex(final int currentIndex, final int lastIndex) {
-            return (currentIndex == 0) ? lastIndex : currentIndex - 1;
+        public int nextIndex(final int currentIndex, final int itemCount) {
+            return (currentIndex == 0) ? itemCount : currentIndex - 1;
         }
     };
 
@@ -72,9 +88,14 @@ public class JobDirections {
         private int offset = 1;
 
         @Override
-        public int totalIndexes(final int lastIndex) {
+        public int getCycleLength(final int itemCount) {
             offset = 1;
-            return (lastIndex + 1) * 2;
+            return itemCount * 2;
+        }
+
+        @Override
+        public int getFirstIndex(final int itemCount) {
+            return 0;
         }
 
         @Override
@@ -83,12 +104,12 @@ public class JobDirections {
         }
 
         @Override
-        public int nextIndex(final int currentIndex, final int lastIndex) {
-            if (lastIndex == 0) {
+        public int nextIndex(final int currentIndex, final int itemCount) {
+            if (itemCount == 0) {
                 return currentIndex;
             }
             final int nextIndex = currentIndex + offset;
-            if (nextIndex > lastIndex) {
+            if (nextIndex > itemCount) {
                 offset = -1;
                 return currentIndex - 1;
             } else if (nextIndex < 0) {

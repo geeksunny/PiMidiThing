@@ -7,10 +7,17 @@ public interface JobDirection {
 
     /**
      * TODO
-     * @param lastIndex
+     * @param itemCount
      * @return
      */
-    int totalIndexes(final int lastIndex);
+    int getCycleLength(final int itemCount);
+
+    /**
+     * Determine the starting index for the given itemCount.
+     * @param itemCount
+     * @return
+     */
+    int getFirstIndex(final int itemCount);
 
     /**
      * TODO
@@ -21,9 +28,9 @@ public interface JobDirection {
     /**
      * TODO
      * @param currentIndex
-     * @param lastIndex
+     * @param itemCount
      * @return
      */
-    int nextIndex(final int currentIndex, final int lastIndex);
+    int nextIndex(final int currentIndex, final int itemCount);
 
 }
