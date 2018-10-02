@@ -7,11 +7,12 @@ import android.os.SystemClock;
 import com.eon.androidthings.sensehatdriverlibrary.devices.LedMatrix;
 
 import java.util.Arrays;
+import java.util.Iterator;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Size;
 
-public class Job {
+public class Job implements Iterable<Job.Position> {
 
     // TODO: implement support for vertical scrolling
     // TODO: Should there be rotationOffset implemented for scrolling frames?
@@ -106,6 +107,79 @@ public class Job {
         jobCycler.initScroll(frame);
         currentRotation = jobCycler.nextValue(currentRotation, rotationOffset);
         return frame;
+    }
+
+    @NonNull
+    @Override
+    public Iterator<Position> iterator() {
+        if (!isStarted()) {
+            start();
+        }
+        return new PositionIterator(this);
+    }
+
+    static class Position {
+
+        final Bitmap frame;
+        final Rect drawBounds;
+        final long sleepDuration;
+
+        private Position(@NonNull final Bitmap frame, final long sleepDuration) {
+            this(frame, new Rect(0, 0, LedMatrix.WIDTH, LedMatrix.HEIGHT), sleepDuration);
+        }
+
+        private Position(@NonNull final Bitmap frame,
+                         @NonNull final Rect drawBounds,
+                         final long sleepDuration) {
+
+            this.frame = frame;
+            this.drawBounds = drawBounds;
+            this.sleepDuration = sleepDuration;
+        }
+
+    }
+
+    static class PositionIterator implements Iterator<Position> {
+
+        private final Job job;
+        private final JobCycler jobCycler;
+
+        PositionIterator(final Job job) {
+            this.job = job;
+            this.jobCycler = job.jobCycler;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return (jobCycler.hasNextScroll() || jobCycler.hasNextFrame()) && job.isAlive();
+        }
+
+        @Override
+        public Position next() {
+            if (jobCycler.hasNextScroll()) {
+                return nextScroll();
+            } else if (jobCycler.hasNextFrame()) {
+                return nextFrame();
+            }
+            return null;
+        }
+
+        @NonNull//?
+        private Position nextScroll() {
+            // Get current frame
+            // get next scroll
+            // create bounds
+            // create result
+            // TODO: return a Position with scroll bounds
+            return null;
+        }
+
+        @NonNull//?
+        private Position nextFrame() {
+            // TODO: return a Position with the bitmap and, if relevant, an initial scroll bounds?
+            return null;
+        }
+
     }
 
     public static class Builder {

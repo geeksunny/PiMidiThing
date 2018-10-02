@@ -16,11 +16,13 @@ class JobCycler {
     private final int scrollRate;
     private final JobDirection jobDirection;
 
-    private int frameIndex = -1;
     private int scrollIndex = -1;
-    private int scrollCount = 0;
-    private int cyclePosition = -1;
-    private int currentCycle = -1;  // TODO: start off at 1??
+    private int scrollCount = -1;
+    private int scrollCyclePos = -1;
+    private int frameCyclePos = 0;
+    private int currentCycle = 1;
+
+    private int frameIndex;
 
     // TODO: Implement logic for shuffled indexes
     private boolean shuffled;
@@ -36,7 +38,7 @@ class JobCycler {
         }
         // TODO: Check for valid values before setting anything?
         this.frameCount = jobDirection.getCycleLength(frameCount);
-        // TODO: if cycleCount is 0, hasNextCycle should always be true.
+        this.frameIndex = jobDirection.getFirstIndex(frameCount);
         this.cycleCount = cycleCount;
         this.scrollRate = scrollRate;
         this.jobDirection = jobDirection;
@@ -46,9 +48,17 @@ class JobCycler {
     void initScroll(@NonNull final Bitmap currentFrame) {
         final int width = currentFrame.getWidth();
         if (width > LedMatrix.WIDTH) {
-            scrollCount = (width / scrollRate) + ((width % scrollRate > 0) ? 1 : 0);
+            //scrollCount = (width / scrollRate) + ((width % scrollRate > 0) ? 1 : 0);
+            // TODO: Use math above to implement incomplete final scrolls.
+            final int itemCount = width / scrollRate;   // TODO: This math is incorrect, needs to take WIDTH into account
+            scrollCount = jobDirection.getCycleLength(itemCount);
+            scrollIndex = jobDirection.getFirstIndex(itemCount);
+            // TODO: is getFirstIndex okay with the -1 starting indexes?
+            scrollCyclePos = -1;
         } else {
             scrollCount = 0;
+            scrollIndex = 0;
+            scrollCyclePos = 0;
         }
     }
 
@@ -57,7 +67,7 @@ class JobCycler {
     }
 
     boolean hasNextCycle() {
-        return currentCycle <= cycleCount;
+        return cycleCount == 0 || currentCycle <= cycleCount;
     }
 
     int getNextFrameIndex() {
@@ -82,7 +92,7 @@ class JobCycler {
 
     boolean hasNextScroll() {
         // TODO: need to use a scrollPosition value here rather than scrollIndex. Logic wouldn't work for reverse direction
-        return scrollIndex < scrollCount;
+        return scrollCyclePos < scrollCount;
     }
 
     int nextValue(final int currentValue, final int valueOffset) {
