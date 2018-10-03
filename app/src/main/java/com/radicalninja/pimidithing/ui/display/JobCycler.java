@@ -24,14 +24,10 @@ class JobCycler {
 
     private int frameIndex;
 
-    // TODO: Implement logic for shuffled indexes
-    private boolean shuffled;
-
     JobCycler(final int frameCount,
               final int cycleCount,
               final int scrollRate,
-              @NonNull final JobDirection jobDirection,
-              final boolean shuffled) {
+              @NonNull final JobDirection jobDirection) {
 
         if (null == jobDirection) {
             throw new IllegalArgumentException("JobDirection must not be null.");
@@ -42,7 +38,6 @@ class JobCycler {
         this.cycleCount = cycleCount;
         this.scrollRate = scrollRate;
         this.jobDirection = jobDirection;
-        this.shuffled = shuffled;
     }
 
     void initScroll(@NonNull final Bitmap currentFrame) {

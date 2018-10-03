@@ -1,5 +1,7 @@
 package com.radicalninja.pimidithing.ui.display;
 
+import java.util.Random;
+
 /**
  * Predefined JobDirection handlers.
  */
@@ -120,5 +122,36 @@ public class JobDirections {
             }
         }
     };
+
+    /**
+     * Job steps are in a randomized/shuffled order.
+     */
+    public static JobDirection shuffled() {
+        return new JobDirection() {
+            private final Random r = new Random();
+
+            @Override
+            public int getCycleLength(final int itemCount) {
+                return itemCount;
+            }
+
+            @Override
+            public int getFirstIndex(final int itemCount) {
+                return r.nextInt(itemCount);
+            }
+
+            @Override
+            public int getStepLength() {
+                // TODO: random step length returned? should next step length be stored in nextIndex/firstIndex?
+                return 0;
+            }
+
+            @Override
+            public int nextIndex(final int currentIndex, final int itemCount) {
+                // TODO
+                return 0;
+            }
+        };
+    }
 
 }
