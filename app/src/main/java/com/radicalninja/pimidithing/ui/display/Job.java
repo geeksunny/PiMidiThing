@@ -49,16 +49,8 @@ public class Job implements Iterable<Job.Position> {
         }
     }
 
-    long getSleepDuration() {
-        return (frameRate > 0) ? frameRate : maxDuration;
-    }
-
-    boolean needsScrolling() {
-        return jobCycler.getScrollCount() > 1;
-    }
-
-    boolean needsRotation() {
-        return rotationOffset != 0;
+    int getCurrentRotation() {
+        return currentRotation;
     }
 
     void stop() {
@@ -81,34 +73,6 @@ public class Job implements Iterable<Job.Position> {
         return !stopped && jobCycler.hasNextCycle() && (SystemClock.elapsedRealtime() < expirationTime);
     }
 
-    int getCurrentRotation() {
-        return currentRotation;
-    }
-
-    boolean hasNextScroll() {
-        return jobCycler.hasNextScroll();
-    }
-
-    @NonNull
-    Rect getNextScroll() {
-        // Currently, only horizontal scrolling is supported.
-        final int offset = jobCycler.getNextScrollOffset();
-        return new Rect(offset, 0, LedMatrix.WIDTH, LedMatrix.HEIGHT);
-    }
-
-    boolean hasNextFrame() {
-        return jobCycler.hasNextFrame();
-    }
-
-    @NonNull
-    Bitmap getNextFrame() {
-        final int frameIndex = jobCycler.getNextFrameIndex();
-        final Bitmap frame = frames[frameIndex];
-        jobCycler.initScroll(frame);
-        currentRotation = jobCycler.nextValue(currentRotation, rotationOffset);
-        return frame;
-    }
-
     @NonNull
     @Override
     public Iterator<Position> iterator() {
@@ -123,18 +87,33 @@ public class Job implements Iterable<Job.Position> {
         final Bitmap frame;
         final Rect drawBounds;
         final long sleepDuration;
+        final int rotationOffset;
 
-        private Position(@NonNull final Bitmap frame, final long sleepDuration) {
-            this(frame, new Rect(0, 0, LedMatrix.WIDTH, LedMatrix.HEIGHT), sleepDuration);
+        private Position(@NonNull final Bitmap frame,
+                         final long sleepDuration,
+                         final int rotationOffset) {
+
+            this(frame, new Rect(0, 0, LedMatrix.WIDTH, LedMatrix.HEIGHT),
+                    sleepDuration, rotationOffset);
         }
 
         private Position(@NonNull final Bitmap frame,
                          @NonNull final Rect drawBounds,
-                         final long sleepDuration) {
+                         final long sleepDuration,
+                         final int rotationOffset) {
 
             this.frame = frame;
             this.drawBounds = drawBounds;
-            this.sleepDuration = sleepDuration;
+            this.sleepDuration = (sleepDuration > 0) ? sleepDuration : 0;
+            this.rotationOffset = rotationOffset;
+        }
+
+        boolean needsRotation() {
+            return rotationOffset != 0;
+        }
+
+        int getRotation() {
+            return rotationOffset;
         }
 
     }
@@ -164,20 +143,22 @@ public class Job implements Iterable<Job.Position> {
             return null;
         }
 
-        @NonNull//?
+        @NonNull
         private Position nextScroll() {
-            // Get current frame
-            // get next scroll
-            // create bounds
-            // create result
-            // TODO: return a Position with scroll bounds
-            return null;
+            final Bitmap frame = job.frames[jobCycler.getCurrentFrameIndex()];
+            // Currently, only horizontal scrolling is supported.
+            final int offset = jobCycler.getNextScrollOffset();
+            final Rect bounds = new Rect(offset, 0, LedMatrix.WIDTH, LedMatrix.HEIGHT);
+            return new Position(frame, bounds, job.frameRate, job.rotationOffset);
         }
 
-        @NonNull//?
+        @NonNull
         private Position nextFrame() {
-            // TODO: return a Position with the bitmap and, if relevant, an initial scroll bounds?
-            return null;
+            final Bitmap frame = job.frames[jobCycler.getNextFrameIndex()];
+            jobCycler.initScroll(frame);
+            return (jobCycler.hasNextScroll())
+                    ? nextScroll()
+                    : new Position(frame, job.frameRate, job.rotationOffset);
         }
 
     }

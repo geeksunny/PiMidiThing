@@ -70,6 +70,10 @@ class JobCycler {
         return cycleCount == 0 || currentCycle <= cycleCount;
     }
 
+    int getCurrentFrameIndex() {
+        return frameIndex;
+    }
+
     int getNextFrameIndex() {
         // TODO: increment frame, check cycle for increment
 //        return jobDirection.nextIndex(currentIndex, lastIndex);

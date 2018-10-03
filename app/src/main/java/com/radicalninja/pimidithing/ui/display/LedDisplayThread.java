@@ -22,6 +22,7 @@ public class LedDisplayThread extends Thread {
     private final ConcurrentLinkedQueue<Job> jobs = new ConcurrentLinkedQueue<>();
     private final LedMatrix ledMatrix;
 
+    private boolean stopping = false;
     private boolean parked = false;
     private Job currentJob;
 
@@ -61,6 +62,13 @@ public class LedDisplayThread extends Thread {
 
     public boolean isParked() {
         return parked;
+    }
+
+    public void shutdown() {
+        stopping = true;
+        if (parked) {
+            unpark();
+        }
     }
 
     public void queueJob(@NonNull final Job job) {
@@ -175,16 +183,22 @@ public class LedDisplayThread extends Thread {
 
     @Override
     public void run() {
-        // TODO: See about a better condition than "while (true)" ... Is there any condition that would shut down this thread?
-        while (true) {
+        boolean running = true;
+        while (running) {
             if (jobs.peek() == null) {
                 Log.d(TAG, "Job queue is empty; Parking thread.");
                 try {
                     park();
                 } catch (InterruptedException e) {
+                    // TODO: Should InterruptedException shut down the thread?
+                    //stopping = true;
                     e.printStackTrace();
                 } finally {
                     parked = false;
+                }
+                if (stopping) {
+                    running = false;
+                    continue;
                 }
             }
             currentJob = jobs.poll();
@@ -192,18 +206,19 @@ public class LedDisplayThread extends Thread {
                 continue;
             }
             ledMatrix.setRotation(currentJob.getCurrentRotation());
-            while (currentJob.hasNextFrame() && currentJob.isAlive()) {
-                final Bitmap currentFrame = currentJob.getNextFrame();
-                if (currentJob.needsScrolling()) {
-                    while (currentJob.hasNextScroll() && currentJob.isAlive()) {
-                        final Rect scroll = currentJob.getNextScroll();
-                        draw(currentFrame, scroll, currentJob.getSleepDuration());
-                    }
-                } else {
-                    draw(currentFrame, null, currentJob.getSleepDuration());
-                    if (currentJob.needsRotation()) {
-                        ledMatrix.setRotation(currentJob.getCurrentRotation());
-                    }
+            for (final Job.Position pos : currentJob) {
+                if (pos.needsRotation()) {
+                    ledMatrix.setRotation(pos.getRotation());
+                }
+                final Rect bounds = pos.drawBounds;
+                try {
+                    ledMatrix.draw(pos.frame, bounds.left, bounds.top, bounds.width(), bounds.height());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                if (stopping) {
+                    running = false;
+                    break;
                 }
             }
             currentJob.recycle();
