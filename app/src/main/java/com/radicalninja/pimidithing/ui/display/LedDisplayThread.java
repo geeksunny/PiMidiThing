@@ -183,6 +183,7 @@ public class LedDisplayThread extends Thread {
 
     @Override
     public void run() {
+        Log.d(TAG, "Beginning main loop for LedDisplayThread queue.");
         boolean running = true;
         while (running) {
             if (jobs.peek() == null) {
@@ -190,9 +191,8 @@ public class LedDisplayThread extends Thread {
                 try {
                     park();
                 } catch (InterruptedException e) {
-                    // TODO: Should InterruptedException shut down the thread?
-                    //stopping = true;
-                    e.printStackTrace();
+                    stopping = true;
+                    Log.e(TAG, "Thread was interrupted while parked. Stopping main loop.", e);
                 } finally {
                     parked = false;
                 }
@@ -214,7 +214,9 @@ public class LedDisplayThread extends Thread {
                 try {
                     ledMatrix.draw(pos.frame, bounds.left, bounds.top, bounds.width(), bounds.height());
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    Log.e(TAG, "Encountered an error while attempting to draw to LED Matrix. Stopping main loop.", e);
+                    stopping = true;
+                    break;
                 }
                 if (stopping) {
                     running = false;
@@ -224,6 +226,7 @@ public class LedDisplayThread extends Thread {
             currentJob.recycle();
             currentJob = null;
         }
+        Log.d(TAG, "Main thread has ended gracefully(?)");
     }
 
 }

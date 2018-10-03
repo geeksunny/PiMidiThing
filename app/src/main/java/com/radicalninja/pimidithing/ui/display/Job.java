@@ -173,6 +173,7 @@ public class Job implements Iterable<Job.Position> {
         private int startingRotation = 0;
         private int rotationOffset = 0;
         private JobDirection jobDirection = JobDirections.FORWARD;
+        private JobDirection scrollDirection;
 
         public Builder withFrame(@NonNull final Bitmap frame) {
             if (null == frame) {
@@ -247,13 +248,18 @@ public class Job implements Iterable<Job.Position> {
             return this;
         }
 
+        public Builder withScrollDirection(final JobDirection scrollDirection) {
+            this.scrollDirection = scrollDirection;
+            return this;
+        }
+
         @NonNull
         public Job build() {
             if (null == frames) {
                 throw new IllegalArgumentException("Frames are not set!");
             }
             final JobCycler jobCycler =
-                    new JobCycler(frames.length, cycles, scrollRate, jobDirection);
+                    new JobCycler(frames.length, cycles, scrollRate, jobDirection, scrollDirection);
             return new Job(
                     frames, frameRate, maxDuration, startingRotation, rotationOffset, jobCycler);
         }
