@@ -168,7 +168,7 @@ public class Job implements Iterable<Job.Position> {
         private Bitmap[] frames;
         private long frameRate = 100;
         private int scrollRate = 1;
-        private int cycles = 0;
+        private int cycles = 1;
         private long maxDuration = 0;
         private int startingRotation = 0;
         private int rotationOffset = 0;
@@ -215,8 +215,8 @@ public class Job implements Iterable<Job.Position> {
         }
 
         public Builder withCycles(final int cycles) {
-            if (cycles < 0) {
-                throw new IllegalArgumentException("Cycle count must be zero or more.");
+            if (cycles < 1) {
+                throw new IllegalArgumentException("Cycle count must be one or more.");
             }
             this.cycles = cycles;
             return this;
