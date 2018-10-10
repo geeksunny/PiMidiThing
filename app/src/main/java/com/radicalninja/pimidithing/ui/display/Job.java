@@ -5,11 +5,13 @@ import android.graphics.Rect;
 import android.os.SystemClock;
 
 import com.eon.androidthings.sensehatdriverlibrary.devices.LedMatrix;
+import com.radicalninja.pimidithing.util.ValueException;
 
 import java.util.Arrays;
 import java.util.Iterator;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.Size;
 
 public class Job implements Iterable<Job.Position> {
@@ -165,11 +167,16 @@ public class Job implements Iterable<Job.Position> {
 
     public static class Builder {
 
+        private static final long MINIMUM_FRAME_RATE = 100;
+        private static final int MINIMUM_SCROLL_RATE = 1;
+        private static final int MINIMUM_CYCLES = 1;
+        private static final long MINIMUM_MAX_DURATION = 0;
+
         private Bitmap[] frames;
-        private long frameRate = 100;
-        private int scrollRate = 1;
-        private int cycles = 1;
-        private long maxDuration = 0;
+        private long frameRate = MINIMUM_FRAME_RATE;
+        private int scrollRate = MINIMUM_SCROLL_RATE;
+        private int cycles = MINIMUM_CYCLES;
+        private long maxDuration = MINIMUM_MAX_DURATION;
         private int startingRotation = 0;
         private int rotationOffset = 0;
         private JobDirection jobDirection = JobDirections.FORWARD;
@@ -177,7 +184,7 @@ public class Job implements Iterable<Job.Position> {
 
         public Builder withFrame(@NonNull final Bitmap frame) {
             if (null == frame) {
-                throw new IllegalArgumentException("Frame must not be null.");
+                throw new ValueException.ValueIsNullException("Frame");
             }
             this.frames = new Bitmap[]{frame};
             return this;
@@ -185,13 +192,13 @@ public class Job implements Iterable<Job.Position> {
 
         public Builder withFrames(@NonNull @Size(min=1) final Bitmap[] frames) {
             if (null == frames) {
-                throw new IllegalArgumentException("Frames must not be null.");
+                throw new ValueException.ValueIsNullException("Frames");
             } else if (frames.length == 0) {
-                throw new IllegalArgumentException("Frames must not be empty.");
+                throw new ValueException("Frames must not be empty.");
             }
             for (final Bitmap frame : frames) {
                 if (null == frame) {
-                    throw new IllegalArgumentException("Found null entry in frames.");
+                    throw new ValueException("Found null entry in frames.");
                 }
             }
             this.frames = Arrays.copyOf(frames, frames.length);
@@ -199,16 +206,16 @@ public class Job implements Iterable<Job.Position> {
         }
 
         public Builder withFrameRate(final long frameRate) {
-            if (frameRate < 0) {
-                throw new IllegalArgumentException("Frame rate must be zero or more.");
+            if (frameRate < MINIMUM_FRAME_RATE) {
+                throw new ValueException.BelowMinimumValueException("Frame rate", MINIMUM_FRAME_RATE);
             }
             this.frameRate = frameRate;
             return this;
         }
 
         public Builder withScrollRate(final int scrollRate) {
-            if (scrollRate < 1) {
-                throw new IllegalArgumentException("Scroll rate must be one or more.");
+            if (scrollRate < MINIMUM_SCROLL_RATE) {
+                throw new ValueException.BelowMinimumValueException("Scroll rate", MINIMUM_SCROLL_RATE);
             }
             this.scrollRate = scrollRate;
             return this;
@@ -216,7 +223,7 @@ public class Job implements Iterable<Job.Position> {
 
         public Builder withCycles(final int cycles) {
             if (cycles < 1) {
-                throw new IllegalArgumentException("Cycle count must be one or more.");
+                throw new ValueException.BelowMinimumValueException("Cycle count", MINIMUM_CYCLES);
             }
             this.cycles = cycles;
             return this;
@@ -224,7 +231,7 @@ public class Job implements Iterable<Job.Position> {
 
         public Builder withMaxDuration(final long maxDuration) {
             if (maxDuration < 0) {
-                throw new IllegalArgumentException("Max duration must be zero or more.");
+                throw new ValueException.BelowMinimumValueException("Max duration", MINIMUM_MAX_DURATION);
             }
             this.maxDuration = maxDuration;
             return this;
@@ -240,15 +247,15 @@ public class Job implements Iterable<Job.Position> {
             return this;
         }
 
-        public Builder withJobDirection(final JobDirection jobDirection) {
+        public Builder withJobDirection(@NonNull final JobDirection jobDirection) {
             if (null == jobDirection) {
-                throw new IllegalArgumentException("Job direction must not be null.");
+                throw new ValueException.ValueIsNullException("Job direction");
             }
             this.jobDirection = jobDirection;
             return this;
         }
 
-        public Builder withScrollDirection(final JobDirection scrollDirection) {
+        public Builder withScrollDirection(@Nullable final JobDirection scrollDirection) {
             this.scrollDirection = scrollDirection;
             return this;
         }
@@ -256,7 +263,7 @@ public class Job implements Iterable<Job.Position> {
         @NonNull
         public Job build() {
             if (null == frames) {
-                throw new IllegalArgumentException("Frames are not set!");
+                throw new ValueException("Frames are not set!");
             }
             final JobCycler jobCycler =
                     new JobCycler(frames.length, cycles, scrollRate, jobDirection, scrollDirection);

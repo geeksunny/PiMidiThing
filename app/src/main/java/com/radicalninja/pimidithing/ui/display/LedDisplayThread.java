@@ -186,7 +186,7 @@ public class LedDisplayThread extends Thread {
         Log.d(TAG, "Beginning main loop for LedDisplayThread queue.");
         boolean running = true;
         while (running) {
-            if (jobs.peek() == null) {
+            if (null == jobs.peek()) {
                 Log.d(TAG, "Job queue is empty; Parking thread.");
                 try {
                     park();
@@ -226,7 +226,7 @@ public class LedDisplayThread extends Thread {
             currentJob.recycle();
             currentJob = null;
         }
-        Log.d(TAG, "Main thread has ended gracefully(?)");
+        Log.d(TAG, "Main loop has ended gracefully.");
     }
 
 }
