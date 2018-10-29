@@ -210,13 +210,10 @@ public class LedDisplayThread extends Thread {
                 if (pos.needsRotation()) {
                     ledMatrix.setRotation(pos.getRotation());
                 }
-                final Rect bounds = pos.drawBounds;
-                try {
-                    ledMatrix.draw(pos.frame, bounds.left, bounds.top, bounds.width(), bounds.height());
-                } catch (IOException e) {
-                    Log.e(TAG, "Encountered an error while attempting to draw to LED Matrix. Stopping main loop.", e);
+                final boolean success = draw(pos.frame, pos.drawBounds, pos.sleepDuration);
+                if (!success) {
+                    Log.e(TAG, "Encountered an error while attempting to draw to LED Matrix. Stopping main loop.");
                     stopping = true;
-                    break;
                 }
                 if (stopping) {
                     running = false;

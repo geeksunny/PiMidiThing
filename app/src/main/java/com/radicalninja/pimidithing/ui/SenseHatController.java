@@ -15,6 +15,8 @@ import com.radicalninja.pimidithing.ui.display.LedDisplayThread;
 import java.io.IOException;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.IntRange;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 public class SenseHatController {
@@ -67,6 +69,10 @@ public class SenseHatController {
         this.ledMatrix = (enabled) ? senseHat.getLedMatrix() : null;
         this.resources = (enabled) ? resources : null;
         displayThread = (enabled) ? new LedDisplayThread(ledMatrix) : null;
+        // TODO: Should this be moved to the first job queuing?
+        if (null != displayThread) {
+            displayThread.start();
+        }
     }
 
     protected Typeface getTypeface() {
@@ -112,16 +118,22 @@ public class SenseHatController {
         displayThread.queueJob(job);
     }
 
-    public void displayRotatingIcon(final LedIcon icon, final long frameRate, final int rotationOffset) {
+    public void displayRotatingIcon(@NonNull final LedIcon icon,
+                                    @IntRange(from = 1) final int cycles,
+                                    @IntRange(from = 100) final long frameRate,
+                                    final int rotationOffset) {
         if (!enabled) {
             return;
         }
         // TODO: Add more configurable params for this
+        final long maxDuration = (frameRate * cycles) + 5;
         final Job job = new Job.Builder()
                 .withFrame(icon.createBitmap())
                 .withFrameRate(frameRate)
-                .withCycles(25)
+                .withCycles(cycles)
+                .withStartingRotation(rotationOffset)
                 .withRotationOffset(rotationOffset)
+                .withMaxDuration(maxDuration)
                 .build();
         displayThread.queueJob(job);
     }

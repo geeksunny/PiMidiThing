@@ -55,6 +55,11 @@ public class Job implements Iterable<Job.Position> {
         return currentRotation;
     }
 
+    int getNextRotation() {
+        currentRotation += rotationOffset;
+        return currentRotation;
+    }
+
     void stop() {
         this.stopped = true;
     }
@@ -151,7 +156,7 @@ public class Job implements Iterable<Job.Position> {
             // Currently, only horizontal scrolling is supported.
             final int offset = jobCycler.getNextScrollOffset();
             final Rect bounds = new Rect(offset, 0, LedMatrix.WIDTH, LedMatrix.HEIGHT);
-            return new Position(frame, bounds, job.frameRate, job.rotationOffset);
+            return new Position(frame, bounds, job.frameRate, job.getNextRotation());
         }
 
         @NonNull
@@ -160,7 +165,7 @@ public class Job implements Iterable<Job.Position> {
             jobCycler.initScroll(frame);
             return (jobCycler.hasNextScroll())
                     ? nextScroll()
-                    : new Position(frame, job.frameRate, job.rotationOffset);
+                    : new Position(frame, job.frameRate, job.getNextRotation());
         }
 
     }
